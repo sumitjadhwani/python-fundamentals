@@ -2,8 +2,6 @@
 
 A small static website for learning Python fundamentals — short notes, runnable examples, memory tricks, "predict the output" checks, flashcards and gotcha checklists.
 
-Content is adapted from [HrushiMakode/Notes · Python](https://github.com/HrushiMakode/Notes/tree/master/Python).
-
 ## Contents
 
 | Page | Modules | Status |
