@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase 4 · Concurrency &amp; Parallelism — Python Fundamentals</title>
+  <meta name="description" content="Threading, multiprocessing and asyncio — when to use which, with short notes, examples and memory tricks.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle menu">☰</button>
+  <a class="brand" href="index.html"><span class="brand-logo">py</span><span class="brand-text">Python Fundamentals</span></a>
+  <nav class="topnav">
+    <a href="index.html" class="hide-sm">Home</a>
+    <div data-phase-menu></div>
+    <button class="icon-btn" data-theme-toggle aria-label="Toggle dark mode">☾</button>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h4>Phase 4 · Modules</h4>
+    <ol data-sidebar-modules></ol>
+    <h4>Review</h4>
+    <ol>
+      <li><a href="#decide" data-target="decide">🧭 Which one do I use?</a></li>
+      <li><a href="#flashcards" data-target="flashcards">⚡ Quick-fire flashcards</a></li>
+      <li><a href="#gotchas" data-target="gotchas">⚠️ Gotchas checklist</a></li>
+    </ol>
+  </aside>
+
+  <main class="content">
+    <span class="eyebrow">Phase 4 of 6 · Modules 14–16</span>
+    <h1>Concurrency &amp; Parallelism</h1>
+    <p class="lead">Know exactly which tool to reach for — threads, processes or an event loop — and why.</p>
+
+    <ul class="roadmap">
+      <li><a href="#m14"><span class="num">M14</span> Threading</a></li>
+      <li><a href="#m15"><span class="num">M15</span> Multiprocessing</a></li>
+      <li><a href="#m16"><span class="num">M16</span> Asyncio</a></li>
+      <li><a href="#decide"><span class="num">🧭</span> Decision guide</a></li>
+    </ul>
+
+    <div class="callout trick">
+      <div class="callout-title">🧠 The big picture in one image</div>
+      <ul>
+        <li><strong>Threads</strong> = several workers in <em>one office</em> sharing <em>one phone</em> (the GIL).</li>
+        <li><strong>Processes</strong> = separate offices, each with its own phone — real parallelism, but passing papers between offices is slow.</li>
+        <li><strong>Asyncio</strong> = <em>one</em> super-efficient waiter serving a thousand tables.</li>
+      </ul>
+    </div>
+
+    <!-- ===================================================== M14 -->
+    <section class="module" id="m14" data-title="M14 · Threading">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 14</span><h2>Threading</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>Threads give you <strong>concurrency for I/O-bound work</strong>. The GIL is released while a thread waits on the network or disk, so other threads keep going. For pure-Python CPU work, threads don't help.</p>
+      </div>
+
+      <h3>The modern API: <code>ThreadPoolExecutor</code></h3>
+<pre><code class="language-python">from concurrent.futures import ThreadPoolExecutor, as_completed
+import urllib.request
+
+def fetch(url):
+    with urllib.request.urlopen(url, timeout=10) as resp:
+        return resp.status
+
+urls = ["https://python.org", "https://pypi.org", "https://docs.python.org"]
+
+with ThreadPoolExecutor(max_workers=10) as pool:
+    # Option 1: map — results in INPUT order
+    statuses = list(pool.map(fetch, urls))
+
+    # Option 2: submit + as_completed — results in COMPLETION order
+    futures = {pool.submit(fetch, u): u for u in urls}
+    for fut in as_completed(futures):
+        print(futures[fut], fut.result())</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic"><code>map</code> = “in the order I asked”. <code>as_completed</code> = “whoever finishes first”.</p>
+      </div>
+
+      <h3>Synchronization primitives</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Primitive</th><th>Purpose</th><th>Typical use</th></tr>
+        <tr><td><code>Lock</code></td><td>Only one thread at a time</td><td>Protect <code>counter += 1</code></td></tr>
+        <tr><td><code>RLock</code></td><td>Same thread can re-acquire</td><td>Recursive code paths</td></tr>
+        <tr><td><code>Semaphore(n)</code></td><td>At most <em>n</em> threads at a time</td><td>Connection limits</td></tr>
+        <tr><td><code>Event</code></td><td>One-time signal</td><td>“Please shut down” flag</td></tr>
+        <tr><td><code>Condition</code></td><td>Wait until notified</td><td>Producer–consumer</td></tr>
+        <tr><td><code>queue.Queue</code></td><td>Thread-safe hand-off</td><td>The easiest producer–consumer</td></tr>
+      </table></div>
+
+<pre><code class="language-python">import threading
+
+balance = 0
+lock = threading.Lock()
+
+def deposit(amount):
+    global balance
+    with lock:                   # acquire … release, even on exceptions
+        balance += amount</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li><strong>Race condition</strong> = two threads read-modify-write the same data without a lock.</li>
+          <li><strong>Daemon threads</strong> are killed abruptly when the main thread exits — no cleanup.</li>
+          <li>Each thread reserves its own stack (8 MB by default on Linux) — thousands of threads get expensive.</li>
+          <li>Prefer <code>ThreadPoolExecutor</code> over managing <code>threading.Thread</code> objects by hand.</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">from concurrent.futures import ThreadPoolExecutor
+import time
+
+def slow_square(n):
+    time.sleep(1 - n * 0.3)      # bigger n finishes sooner
+    return n * n
+
+with ThreadPoolExecutor() as pool:
+    print(list(pool.map(slow_square, [1, 2, 3])))</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>[1, 4, 9]</pre>
+            <p><code>map</code> always returns results in input order, even though 3 finished first. Total time ≈ 0.7 s, not 1.8 s — the sleeps overlap.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== M15 -->
+    <section class="module" id="m15" data-title="M15 · Multiprocessing">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 15</span><h2>Multiprocessing</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>Multiprocessing gets <strong>true CPU parallelism</strong> by running separate processes — each with its own interpreter, memory and GIL. Use it for CPU-bound work: number crunching, image processing, parsing.</p>
+      </div>
+
+      <h3>The modern API: <code>ProcessPoolExecutor</code></h3>
+<pre><code class="language-python">from concurrent.futures import ProcessPoolExecutor
+
+def heavy_compute(n):                 # must be a top-level function (picklable)
+    return sum(i * i for i in range(n))
+
+if __name__ == "__main__":            # MANDATORY with spawn / forkserver
+    with ProcessPoolExecutor() as pool:          # defaults to one worker per CPU
+        results = list(pool.map(heavy_compute, [10**6] * 4))
+    print(sum(results))</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — the main guard</div>
+        <p class="mnemonic">“Children re-read the script — guard the front door.”</p>
+        <p>A spawned child imports your file again. Without <code>if __name__ == "__main__":</code> it would start its own pool, whose children start pools… an accidental process explosion.</p>
+      </div>
+
+      <h3>Start methods: <code>fork</code> vs <code>spawn</code> vs <code>forkserver</code></h3>
+      <div class="table-wrap"><table>
+        <tr><th></th><th><code>fork</code></th><th><code>spawn</code></th><th><code>forkserver</code></th></tr>
+        <tr><td>How</td><td>Copy the parent process</td><td>Start a fresh interpreter</td><td>Fork from a clean helper process</td></tr>
+        <tr><td>Speed</td><td>Fastest (copy-on-write)</td><td>Slowest</td><td>In between</td></tr>
+        <tr><td>Safe with threads?</td><td>❌ Copies held locks → deadlocks</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Default on</td><td>Linux ≤ 3.13</td><td>Windows, macOS</td><td>Linux 3.14+</td></tr>
+      </table></div>
+<pre><code class="language-python">import multiprocessing as mp
+
+if __name__ == "__main__":
+    mp.set_start_method("spawn")     # call ONCE, inside the guard
+    ...</code></pre>
+
+      <h3>Sharing data between processes (IPC)</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Mechanism</th><th>Use case</th><th>Speed</th></tr>
+        <tr><td><code>Queue</code></td><td>Producer–consumer</td><td>Medium</td></tr>
+        <tr><td><code>Pipe</code></td><td>Two-process channel</td><td>Fast</td></tr>
+        <tr><td><code>Value</code> / <code>Array</code> / <code>shared_memory</code></td><td>Raw shared memory</td><td>Fastest</td></tr>
+        <tr><td><code>Manager</code></td><td>Shared Python objects via proxies</td><td>Slowest</td></tr>
+      </table></div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Everything crossing the border gets pickled.”</p>
+        <p>Arguments and results are serialized with <code>pickle</code>. Lambdas, nested functions and open files can't be pickled — and pickling big data can cost more than the work itself.</p>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li>Each process costs tens of MB — don't spawn thousands.</li>
+          <li>For tiny tasks, serialization overhead can wipe out the speed-up. Batch work into bigger chunks.</li>
+          <li>Never <code>fork</code> a process that already runs threads.</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">from concurrent.futures import ProcessPoolExecutor
+
+if __name__ == "__main__":
+    with ProcessPoolExecutor() as pool:
+        print(list(pool.map(lambda x: x * 2, [1, 2, 3])))</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>PicklingError: Can't pickle &lt;function &lt;lambda&gt; ...&gt;</pre>
+            <p>The function itself must be sent to the worker process, and lambdas can't be pickled. Define a normal top-level <code>def double(x)</code> instead.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== M16 -->
+    <section class="module" id="m16" data-title="M16 · Asyncio">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 16</span><h2>Asyncio</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>Asyncio is <strong>cooperative concurrency on a single thread</strong>. An event loop runs coroutines, and each one voluntarily hands control back at every <code>await</code>. Ideal for thousands of simultaneous network connections — a coroutine costs about a kilobyte, a thread megabytes.</p>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — one waiter, a thousand tables</div>
+        <p>While table 7 is reading the menu (waiting on I/O), the waiter serves table 12. But if the waiter goes into the kitchen to <em>cook</em> (CPU work or a blocking call), <strong>every table waits</strong>.</p>
+      </div>
+
+      <h3>The basics</h3>
+<pre><code class="language-python">import asyncio, time
+
+async def work(name, delay):          # `async def` → calling it returns a coroutine
+    await asyncio.sleep(delay)        # suspension point: the loop runs others meanwhile
+    return name
+
+async def main():
+    start = time.perf_counter()
+    results = await asyncio.gather(work("slow", 2), work("fast", 1))
+    print(results, round(time.perf_counter() - start, 1))
+
+asyncio.run(main())                   # ['slow', 'fast'] 2.0  ← concurrent, input order</code></pre>
+
+      <h3>Key APIs</h3>
+      <div class="table-wrap"><table>
+        <tr><th>API</th><th>What it does</th></tr>
+        <tr><td><code>asyncio.run(main())</code></td><td>Entry point — creates and runs the event loop</td></tr>
+        <tr><td><code>await x</code></td><td>Suspend until <code>x</code> finishes</td></tr>
+        <tr><td><code>asyncio.gather(*coros)</code></td><td>Run concurrently; results in input order</td></tr>
+        <tr><td><code>asyncio.TaskGroup()</code> (3.11+)</td><td>Structured concurrency — cancels siblings if one fails</td></tr>
+        <tr><td><code>asyncio.create_task(coro)</code></td><td>Schedule in the background</td></tr>
+        <tr><td><code>asyncio.timeout(s)</code> (3.11+)</td><td>Cancel the block if it takes too long</td></tr>
+        <tr><td><code>asyncio.to_thread(func)</code></td><td>Run blocking code in a thread without freezing the loop</td></tr>
+        <tr><td><code>asyncio.Semaphore(n)</code></td><td>Limit how many run at once</td></tr>
+      </table></div>
+
+<pre><code class="language-python">async def main():
+    async with asyncio.TaskGroup() as tg:          # modern alternative to gather
+        t1 = tg.create_task(work("a", 1))
+        t2 = tg.create_task(work("b", 1))
+    print(t1.result(), t2.result())                # a b   (after ~1 s total)
+
+    try:
+        async with asyncio.timeout(0.5):
+            await work("x", 2)
+    except TimeoutError:
+        print("timed out")</code></pre>
+
+      <h3>Real-world pattern: rate-limited HTTP</h3>
+<pre data-label="python · needs: pip install aiohttp"><code class="language-python">import asyncio
+import aiohttp
+
+async def fetch(session, sem, url):
+    async with sem:                               # at most 50 in flight
+        async with session.get(url) as resp:
+            return await resp.json()
+
+async def main(urls):
+    sem = asyncio.Semaphore(50)
+    async with aiohttp.ClientSession() as session:
+        return await asyncio.gather(*(fetch(session, sem, u) for u in urls))</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li><strong>A blocking call freezes the whole loop</strong> — <code>time.sleep()</code>, <code>requests.get()</code>, heavy CPU. Use <code>await asyncio.sleep()</code>, async libraries (<code>aiohttp</code>, <code>asyncpg</code>) or <code>asyncio.to_thread()</code>.</li>
+          <li>Calling a coroutine function does nothing until it's awaited or made a task.</li>
+          <li>You can't <code>await</code> inside a regular <code>def</code>.</li>
+          <li>No locks needed between <code>await</code> points — nothing can interrupt you there.</li>
+        </ul>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“No <code>await</code>, no break.”</p>
+        <p>Other coroutines only get a turn when the current one hits an <code>await</code>. Code without awaits hogs the loop.</p>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">import asyncio, time
+
+async def bad(name):
+    time.sleep(1)                     # blocking!
+    return name
+
+async def main():
+    start = time.perf_counter()
+    await asyncio.gather(bad("a"), bad("b"))
+    print(round(time.perf_counter() - start, 1))
+
+asyncio.run(main())</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>2.0</pre>
+            <p><code>time.sleep</code> never yields to the loop, so the two “concurrent” coroutines run back to back. Swap in <code>await asyncio.sleep(1)</code> and it prints <code>1.0</code>.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== DECISION -->
+    <section class="spy" id="decide">
+      <h2>🧭 Which one do I use?</h2>
+      <div class="table-wrap"><table>
+        <tr><th>Your situation</th><th>Reach for</th></tr>
+        <tr><td>I/O-bound, under ~100 concurrent operations, sync libraries</td><td><strong>Threads</strong> — <code>ThreadPoolExecutor</code></td></tr>
+        <tr><td>I/O-bound, hundreds to tens of thousands of connections</td><td><strong>Asyncio</strong></td></tr>
+        <tr><td>CPU-bound (math, images, parsing)</td><td><strong>Processes</strong> — <code>ProcessPoolExecutor</code></td></tr>
+        <tr><td>Both I/O and CPU</td><td>Asyncio + <code>loop.run_in_executor(ProcessPoolExecutor())</code></td></tr>
+      </table></div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Waiting? Threads or async. Thinking? Processes.”</p>
+      </div>
+
+      <div class="table-wrap"><table>
+        <tr><th></th><th>Threading</th><th>Multiprocessing</th><th>Asyncio</th></tr>
+        <tr><td>Concurrency type</td><td>Preemptive</td><td>True parallel</td><td>Cooperative</td></tr>
+        <tr><td>GIL impact</td><td>Blocks CPU work</td><td>None (own GIL each)</td><td>N/A (one thread)</td></tr>
+        <tr><td>Cost per task</td><td>MBs of stack</td><td>Tens of MB</td><td><strong>~1 KB</strong></td></tr>
+        <tr><td>Who switches</td><td>The OS</td><td>The OS</td><td>You, at <code>await</code></td></tr>
+        <tr><td>Shared state</td><td>Shared — needs locks</td><td>Separate — needs IPC</td><td>Shared — no locks between awaits</td></tr>
+        <tr><td>Debugging</td><td>Hard (races)</td><td>Medium</td><td>Easier (deterministic)</td></tr>
+      </table></div>
+    </section>
+
+    <!-- ===================================================== REVIEW -->
+    <section class="spy" id="flashcards">
+      <h2>⚡ Quick-fire flashcards</h2>
+      <p class="muted">Answer out loud, then tap the card to check yourself.</p>
+      <div class="flashcards">
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Threading vs multiprocessing?</div><div class="flashcard-face flashcard-back">Threads for I/O-bound (GIL released while waiting). Processes for CPU-bound (separate GILs).</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">When asyncio over threads?</div><div class="flashcard-face flashcard-back">High-concurrency I/O (hundreds+ connections). ~1 KB per coroutine vs MBs per thread.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>time.sleep()</code> inside async code?</div><div class="flashcard-face flashcard-back">Blocks the whole event loop — everything freezes. Use <code>await asyncio.sleep()</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>fork</code> vs <code>spawn</code>?</div><div class="flashcard-face flashcard-back"><code>fork</code> copies the parent — fast but unsafe with threads. <code>spawn</code> starts fresh — safe but slower.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Why <code>if __name__ == "__main__"</code>?</div><div class="flashcard-face flashcard-back">Spawned children re-import the script. Without the guard they'd recursively start new processes.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Can asyncio use multiple cores?</div><div class="flashcard-face flashcard-back">Not by itself. Combine with a <code>ProcessPoolExecutor</code> via <code>run_in_executor</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>gather</code> result order?</div><div class="flashcard-face flashcard-back">Input order, not completion order. Use <code>as_completed</code> for completion order.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Why can't I pass a lambda to a process pool?</div><div class="flashcard-face flashcard-back">Everything sent to a process is pickled, and lambdas can't be pickled.</div></div></button>
+      </div>
+    </section>
+
+    <section class="spy" id="gotchas">
+      <h2>⚠️ Gotchas checklist</h2>
+      <p class="muted">Skim this the night before an interview.</p>
+      <ol class="gotchas">
+        <li><code>counter += 1</code> is not atomic — lock shared state.</li>
+        <li>Daemon threads are killed on exit — no cleanup.</li>
+        <li>Each thread reserves MBs of stack — thousands get expensive.</li>
+        <li><code>fork</code> + threads = deadlocks.</li>
+        <li>Everything sent to a process must be picklable — no lambdas.</li>
+        <li>The <code>__main__</code> guard is mandatory with <code>spawn</code>/<code>forkserver</code>.</li>
+        <li>A blocking call in async code freezes the event loop — use <code>to_thread()</code>.</li>
+        <li><code>asyncio.gather()</code> keeps input order.</li>
+        <li>Coroutines do nothing until awaited or scheduled as tasks.</li>
+        <li>Asyncio needs no locks between <code>await</code> points.</li>
+      </ol>
+    </section>
+
+    <nav class="pager">
+      <a href="phase-3-internals.html"><small>← Previous</small>Phase 3 · CPython Internals</a>
+      <a class="next" href="index.html"><small>Next →</small>Phase 5 · Production Python (coming soon)</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="footer">Python Fundamentals · Phase 4</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

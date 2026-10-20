@@ -15,7 +15,7 @@
     { n: 3, file: "phase-3-internals.html", title: "CPython Internals", range: "M11–M13", ready: true,
       modules: ["m11", "m12", "m13"],
       topics: ["Compilation & bytecode", "Memory management & GC", "The GIL"] },
-    { n: 4, file: "phase-4-concurrency.html", title: "Concurrency & Parallelism", range: "M14–M16", ready: false,
+    { n: 4, file: "phase-4-concurrency.html", title: "Concurrency & Parallelism", range: "M14–M16", ready: true,
       modules: ["m14", "m15", "m16"],
       topics: ["Threading", "Multiprocessing", "Asyncio"] },
     { n: 5, file: "phase-5-production.html", title: "Production Python", range: "M17–M20", ready: false,
