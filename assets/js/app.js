@@ -18,7 +18,7 @@
     { n: 4, file: "phase-4-concurrency.html", title: "Concurrency & Parallelism", range: "M14–M16", ready: true,
       modules: ["m14", "m15", "m16"],
       topics: ["Threading", "Multiprocessing", "Asyncio"] },
-    { n: 5, file: "phase-5-production.html", title: "Production Python", range: "M17–M20", ready: false,
+    { n: 5, file: "phase-5-production.html", title: "Production Python", range: "M17–M20", ready: true,
       modules: ["m17", "m18", "m19", "m20"],
       topics: ["Modules, packages & imports", "Type hints", "Testing with pytest", "Performance & profiling"] },
     { n: 6, file: "phase-6-design.html", title: "Design & Architecture", range: "M21–M22", ready: false,

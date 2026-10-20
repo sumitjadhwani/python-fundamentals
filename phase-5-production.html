@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase 5 · Production Python — Python Fundamentals</title>
+  <meta name="description" content="Modules & imports, type hints, testing with pytest, and performance profiling — short notes, examples and memory tricks.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle menu">☰</button>
+  <a class="brand" href="index.html"><span class="brand-logo">py</span><span class="brand-text">Python Fundamentals</span></a>
+  <nav class="topnav">
+    <a href="index.html" class="hide-sm">Home</a>
+    <div data-phase-menu></div>
+    <button class="icon-btn" data-theme-toggle aria-label="Toggle dark mode">☾</button>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h4>Phase 5 · Modules</h4>
+    <ol data-sidebar-modules></ol>
+    <h4>Review</h4>
+    <ol>
+      <li><a href="#flashcards" data-target="flashcards">⚡ Quick-fire flashcards</a></li>
+      <li><a href="#gotchas" data-target="gotchas">⚠️ Gotchas checklist</a></li>
+    </ol>
+  </aside>
+
+  <main class="content">
+    <span class="eyebrow">Phase 5 of 6 · Modules 17–20</span>
+    <h1>Production Python</h1>
+    <p class="lead">Write Python that ships, scales and survives production: clean imports, checked types, real tests, and measured performance.</p>
+
+    <ul class="roadmap">
+      <li><a href="#m17"><span class="num">M17</span> Modules &amp; Imports</a></li>
+      <li><a href="#m18"><span class="num">M18</span> Type Hints</a></li>
+      <li><a href="#m19"><span class="num">M19</span> Testing</a></li>
+      <li><a href="#m20"><span class="num">M20</span> Performance</a></li>
+    </ul>
+
+    <!-- ===================================================== M17 -->
+    <section class="module" id="m17" data-title="M17 · Modules &amp; Imports">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 17</span><h2>Modules, Packages &amp; Imports</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>An import is a <strong>find → load → cache</strong> pipeline. Every imported module is stored in <code>sys.modules</code>, so its top-level code runs <strong>only once</strong> per process. Knowing this explains circular imports and what <code>__init__.py</code> is for.</p>
+      </div>
+
+      <h3>What <code>import foo</code> does</h3>
+      <div class="flow">
+        <span class="step"><code>import foo</code></span>
+        <span class="arrow">→</span>
+        <span class="step">In <code>sys.modules</code>?<br><small class="muted">yes → return it</small></span>
+        <span class="arrow">→ no →</span>
+        <span class="step">Finders search <code>sys.path</code></span>
+        <span class="arrow">→</span>
+        <span class="step">Loader <strong>runs</strong> the module's code</span>
+        <span class="arrow">→</span>
+        <span class="step">Cache in <code>sys.modules</code></span>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Imported once, shared everywhere.”</p>
+        <p>The first import executes the file and caches the module object. Every later import — from any file — just hands back that same object.</p>
+      </div>
+
+      <h3>Packages</h3>
+<pre class="diagram">mypackage/
+├── __init__.py        ← runs on `import mypackage`
+├── module_a.py
+├── module_b.py
+└── subpackage/
+    ├── __init__.py
+    └── module_c.py</pre>
+      <ul>
+        <li><code>__init__.py</code> marks a regular package and runs on first import — often used to re-export names (<code>from .module_a import Thing</code>).</li>
+        <li>Without it you get a <em>namespace package</em> (3.3+) — it works, but explicit is better.</li>
+        <li><code>__all__ = ["public_func"]</code> controls what <code>from module import *</code> exports. Leading-underscore names are private by convention only.</li>
+      </ul>
+
+      <h3>Absolute vs relative imports</h3>
+<pre><code class="language-python"># inside mypackage/module_b.py
+from mypackage.module_a import helper     # absolute — clear, works everywhere
+from .module_a import helper              # relative — only inside a package
+from ..other import thing                 # parent package</code></pre>
+
+      <h3>Circular imports</h3>
+      <p><code>a.py</code> imports <code>b.py</code>, which imports <code>a.py</code> while <code>a</code> is only half-loaded → <code>ImportError</code> or <code>AttributeError</code>.</p>
+<pre><code class="language-python"># Fix 1: import inside the function that needs it
+def process():
+    from b import helper
+    return helper()
+
+# Fix 2: imports only needed for type hints
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from b import Helper      # seen by mypy, skipped at runtime
+
+# Fix 3 (best): move the shared code into a third module both can import</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — fixing circles</div>
+        <p class="mnemonic">“Delay it, hide it, or split it.”</p>
+        <p>Delay (function-level import), hide (<code>TYPE_CHECKING</code>), split (restructure).</p>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li>Top-level code runs on first import — side effects (DB connects, prints) are real.</li>
+          <li><code>sys.path[0]</code> is the running script's folder (or <code>""</code> = current directory in the REPL) — a local <code>json.py</code> will shadow the real one.</li>
+          <li><code>importlib.reload(mod)</code> exists for debugging; don't rely on it in production.</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre data-label="greet.py"><code class="language-python">print("loading greet")
+def hi(): return "hi"</code></pre>
+<pre data-label="main.py"><code class="language-python">import greet
+import greet
+from greet import hi
+print(hi())</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>loading greet
+hi</pre>
+            <p>The module body runs once. The second <code>import</code> and the <code>from … import</code> both reuse the cached object in <code>sys.modules</code>.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== M18 -->
+    <section class="module" id="m18" data-title="M18 · Type Hints">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 18</span><h2>Type Hints &amp; Static Analysis</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>Type hints are <strong>documentation that tools can check</strong>. Python itself ignores them at runtime — a static checker such as <code>mypy</code> or <code>pyright</code> (and your IDE) does the enforcing.</p>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Hints are for humans and tools — Python doesn't read them.”</p>
+        <p>Think guardrails for your editor and CI, not a runtime type system.</p>
+      </div>
+
+<pre><code class="language-python">def greet(name: str, times: int = 1) -> str:
+    return f"Hello, {name}! " * times
+
+def lengths(items: list[str]) -> dict[str, int]:     # built-in generics (3.9+)
+    return {item: len(item) for item in items}
+
+def find_user(user_id: int) -> User | None:          # union syntax (3.10+)
+    return db.get(user_id)</code></pre>
+
+      <h3>The toolbox</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Type</th><th>Meaning</th><th>Example</th></tr>
+        <tr><td><code>X | None</code> / <code>Optional[X]</code></td><td>X or <code>None</code></td><td><code>str | None</code></td></tr>
+        <tr><td><code>X | Y</code> / <code>Union[X, Y]</code></td><td>Either type</td><td><code>int | str</code></td></tr>
+        <tr><td><code>Literal[...]</code></td><td>Only these exact values</td><td><code>Literal["r", "w"]</code></td></tr>
+        <tr><td>Type parameters</td><td>Generics</td><td><code>def first[T](xs: list[T]) -> T</code> (3.12+)</td></tr>
+        <tr><td><code>Protocol</code></td><td>Structural “duck” typing</td><td>Anything with <code>.draw()</code></td></tr>
+        <tr><td><code>TypedDict</code></td><td>Dict with known keys</td><td>JSON/API payloads</td></tr>
+        <tr><td><code>@overload</code></td><td>Several signatures</td><td>Return type depends on input</td></tr>
+      </table></div>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Trap: <code>Optional</code> doesn't mean “optional argument”</div>
+        <p><code>def f(x: Optional[int])</code> still requires <code>x</code> — it just may be <code>None</code>. An argument is optional only if it has a default.</p>
+      </div>
+
+      <h3><code>Protocol</code> — interfaces without inheritance</h3>
+<pre><code class="language-python">from typing import Protocol
+
+class Drawable(Protocol):
+    def draw(self) -> None: ...
+
+class Circle:                       # note: does NOT inherit Drawable
+    def draw(self) -> None:
+        print("○")
+
+def render(obj: Drawable) -> None:
+    obj.draw()
+
+render(Circle())                    # ✅ has draw() → matches</code></pre>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">Protocol = “if it quacks”. ABC = “show me your ID”.</p>
+        <p><code>Protocol</code> is structural (matching methods is enough). An <code>ABC</code> is nominal (you must inherit from it).</p>
+      </div>
+
+      <h3>Generics</h3>
+<pre><code class="language-python">class Stack[T]:                     # 3.12+ syntax (older: Generic[T] + TypeVar)
+    def __init__(self) -> None:
+        self._items: list[T] = []
+    def push(self, item: T) -> None:
+        self._items.append(item)
+    def pop(self) -> T:
+        return self._items.pop()
+
+s: Stack[int] = Stack()
+s.push(42)        # ✅
+s.push("hello")   # ❌ mypy: str is not int   (but runs fine at runtime!)</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li>Zero runtime enforcement — wrong types still run until something breaks.</li>
+          <li>Forward references: Python 3.14 evaluates annotations lazily, so <code>def f() -> Node</code> before <code>class Node</code> just works. On older versions use <code>from __future__ import annotations</code> or quote it: <code>"Node"</code>.</li>
+          <li><code>mypy --strict</code> catches more, at the cost of more noise.</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">def double(x: int) -> int:
+    return x * 2
+
+print(double("ab"))</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>abab</pre>
+            <p>No error at runtime — hints aren't enforced. Only a type checker would flag this call.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== M19 -->
+    <section class="module" id="m19" data-title="M19 · Testing">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 19</span><h2>Testing with pytest</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p><code>pytest</code> is the standard. Tests follow <strong>Arrange → Act → Assert</strong>. <strong>Fixtures</strong> handle setup and teardown; <strong>mocks</strong> isolate the unit from slow or external dependencies.</p>
+      </div>
+
+<pre data-label="test_users.py"><code class="language-python">def test_create_user():
+    # Arrange
+    data = {"name": "Alice", "email": "alice@test.com"}
+    # Act
+    user = create_user(data)
+    # Assert
+    assert user.name == "Alice"          # plain assert — pytest shows rich diffs</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Arrange the stage, Act the scene, Assert the review.”</p>
+      </div>
+
+      <h3>Fixtures</h3>
+<pre><code class="language-python">import pytest
+
+@pytest.fixture
+def db():
+    conn = create_connection()    # setup
+    yield conn                    # the test runs here
+    conn.close()                  # teardown — runs even if the test fails
+
+@pytest.fixture(scope="session")  # created once for the whole run
+def big_dataset():
+    return load_large_dataset()
+
+def test_query(db):               # injected by matching the parameter name
+    assert db.execute("SELECT 1") == 1</code></pre>
+      <p><strong>Scopes</strong>, narrow to wide: <code>function</code> (default) → <code>class</code> → <code>module</code> → <code>package</code> → <code>session</code>. Put shared fixtures in <code>conftest.py</code> — pytest finds them automatically, no import needed.</p>
+
+      <h3>Parametrize</h3>
+<pre><code class="language-python">@pytest.mark.parametrize("text, expected", [
+    ("hello", 5),
+    ("", 0),
+    ("世界", 2),
+])
+def test_length(text, expected):
+    assert len(text) == expected        # 3 separate test cases
+
+def test_rejects_negative():
+    with pytest.raises(ValueError, match="must be positive"):
+        calculate(-1)</code></pre>
+
+      <h3>Mocking</h3>
+<pre><code class="language-python"># myapp/services.py
+import requests
+def fetch_status(url):
+    return requests.get(url).json()["status"]
+
+# tests/test_services.py
+from unittest.mock import patch
+
+@patch("myapp.services.requests.get")       # where it's LOOKED UP, not "requests.get"
+def test_fetch_status(mock_get):
+    mock_get.return_value.json.return_value = {"status": "ok"}
+    assert fetch_status("http://api") == "ok"
+    mock_get.assert_called_once_with("http://api")</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Patch where it's used, not where it lives.”</p>
+        <p>If <code>services.py</code> did <code>from requests import get</code>, you'd patch <code>"myapp.services.get"</code>. Patch the name your code actually looks up.</p>
+      </div>
+
+      <h3>The test pyramid</h3>
+<pre class="diagram">          /  E2E  \            ← few, slow, expensive
+        / Integration \        ← some
+      /   Unit tests    \      ← many, fast, cheap</pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li><code>yield</code> fixtures clean up even when the test fails.</li>
+          <li>pytest's built-in <code>monkeypatch</code> fixture is simpler for env vars and attributes: <code>monkeypatch.setenv("MODE", "test")</code>.</li>
+          <li>Too much mocking tests your mocks, not your code — keep some integration tests.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===================================================== M20 -->
+    <section class="module" id="m20" data-title="M20 · Performance">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 20</span><h2>Performance &amp; Profiling</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p><strong>Measure first, optimize second.</strong> Never guess where the time goes — profile, find the hot path, fix that, then measure again.</p>
+      </div>
+
+      <div class="flow">
+        <span class="step">1. Measure</span><span class="arrow">→</span>
+        <span class="step">2. Identify the hot path</span><span class="arrow">→</span>
+        <span class="step">3. Optimize</span><span class="arrow">→</span>
+        <span class="step">4. Verify</span><span class="arrow">↺</span>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Don't guess — measure.”</p>
+        <p>Programmers are famously bad at guessing bottlenecks. The profiler is always more honest.</p>
+      </div>
+
+      <h3>The tools</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Tool</th><th>Measures</th><th>Use for</th></tr>
+        <tr><td><code>timeit</code></td><td>Time of small snippets</td><td>Micro-benchmarks</td></tr>
+        <tr><td><code>cProfile</code></td><td>Calls &amp; time per function</td><td>Finding slow functions</td></tr>
+        <tr><td><code>line_profiler</code> <small class="muted">(pip)</small></td><td>Time per line</td><td>Drilling into a hot function</td></tr>
+        <tr><td><code>tracemalloc</code></td><td>Memory allocations</td><td>Finding leaks</td></tr>
+        <tr><td><code>py-spy</code> <small class="muted">(pip)</small></td><td>Sampling, no code changes</td><td>Profiling live processes</td></tr>
+      </table></div>
+
+<pre><code class="language-python">import timeit
+timeit.timeit('"-".join(str(i) for i in range(100))', number=10_000)
+
+# Function-level profile of a whole script, sorted by cumulative time:
+#   python -m cProfile -s cumulative script.py
+
+import cProfile, pstats
+
+with cProfile.Profile() as pr:
+    main()
+pstats.Stats(pr).sort_stats("cumulative").print_stats(20)   # top 20</code></pre>
+
+      <h3>Optimization patterns</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Anti-pattern</th><th>Fix</th><th>Gain</th></tr>
+        <tr><td><code>s += piece</code> in a loop</td><td><code>"".join(pieces)</code></td><td>O(n²) → O(n)</td></tr>
+        <tr><td><code>x in big_list</code> repeatedly</td><td><code>x in big_set</code></td><td>O(n) → O(1)</td></tr>
+        <tr><td>Recomputing the same result</td><td><code>@lru_cache</code></td><td>Depends on reuse</td></tr>
+        <tr><td><code>list.insert(0, x)</code></td><td><code>collections.deque</code></td><td>O(n) → O(1)</td></tr>
+        <tr><td>Millions of small objects</td><td><code>__slots__</code></td><td>Less memory, less GC</td></tr>
+        <tr><td>Pure-Python number loops</td><td>NumPy / vectorize</td><td>Often 10–100×</td></tr>
+      </table></div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — the optimization ladder</div>
+        <p class="mnemonic">Algorithm → Data structure → Python idiom → C extension.</p>
+        <p>Climb in that order. A better algorithm beats any micro-trick; only reach for NumPy/Cython/Rust once the top rungs are done.</p>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li><code>timeit</code> turns off the GC while timing — real code may be slower.</li>
+          <li><code>cProfile</code> adds overhead to every call, which distorts very fast functions — use <code>timeit</code> for those.</li>
+          <li>Comprehensions usually beat <code>map</code> + <code>lambda</code>; f-strings beat <code>%</code> and <code>.format()</code>.</li>
+          <li>Caching a global like <code>len</code> in a local helped a lot before 3.11; the modern interpreter caches global lookups, so the gain is small now.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===================================================== REVIEW -->
+    <section class="spy" id="flashcards">
+      <h2>⚡ Quick-fire flashcards</h2>
+      <p class="muted">Answer out loud, then tap the card to check yourself.</p>
+      <div class="flashcards">
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What happens on <code>import</code>?</div><div class="flashcard-face flashcard-back">Check <code>sys.modules</code> → find on <code>sys.path</code> → execute the module → cache it.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">How do you fix a circular import?</div><div class="flashcard-face flashcard-back">Delay it (function-level import), hide it (<code>TYPE_CHECKING</code>), or split it (restructure).</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Do type hints affect runtime?</div><div class="flashcard-face flashcard-back">No. Only type checkers and IDEs use them.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What does <code>Optional[str]</code> mean?</div><div class="flashcard-face flashcard-back"><code>str | None</code>. It does NOT make the argument optional.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Where do you patch a mock?</div><div class="flashcard-face flashcard-back">Where the name is looked up (imported), not where it's defined.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Fixture scopes?</div><div class="flashcard-face flashcard-back"><code>function</code> (default) → <code>class</code> → <code>module</code> → <code>package</code> → <code>session</code>. <code>yield</code> for teardown.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">How do you find slow code?</div><div class="flashcard-face flashcard-back"><code>cProfile</code> for functions, then <code>line_profiler</code> on the hot one. <code>tracemalloc</code> for memory.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>Protocol</code> vs ABC?</div><div class="flashcard-face flashcard-back">Protocol = structural (matching methods is enough). ABC = nominal (must inherit).</div></div></button>
+      </div>
+    </section>
+
+    <section class="spy" id="gotchas">
+      <h2>⚠️ Gotchas checklist</h2>
+      <p class="muted">Skim this the night before an interview.</p>
+      <ol class="gotchas">
+        <li><code>sys.modules</code> caches modules — a second import doesn't re-run the code.</li>
+        <li>Top-level module code runs on first import — side effects are real.</li>
+        <li>A local file named like a stdlib module (<code>json.py</code>, <code>random.py</code>) shadows it.</li>
+        <li>Type hints are not enforced at runtime.</li>
+        <li><code>Optional[X]</code> means “X or None”, not “optional argument”.</li>
+        <li>Mock where it's imported, not where it's defined.</li>
+        <li><code>conftest.py</code> fixtures are auto-discovered.</li>
+        <li><code>timeit</code> disables the GC while timing.</li>
+        <li><code>cProfile</code> overhead distorts tiny functions — use <code>timeit</code>.</li>
+        <li>Optimize the algorithm before micro-tuning.</li>
+      </ol>
+    </section>
+
+    <nav class="pager">
+      <a href="phase-4-concurrency.html"><small>← Previous</small>Phase 4 · Concurrency &amp; Parallelism</a>
+      <a class="next" href="index.html"><small>Next →</small>Phase 6 · Design &amp; Architecture (coming soon)</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="footer">Python Fundamentals · Phase 5</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
