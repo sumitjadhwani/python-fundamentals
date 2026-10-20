@@ -16,8 +16,7 @@
   <a class="brand" href="index.html"><span class="brand-logo">py</span><span class="brand-text">Python Fundamentals</span></a>
   <nav class="topnav">
     <a href="index.html" class="active hide-sm">Home</a>
-    <a href="phase-1-foundation.html">Phase 1</a>
-    <a href="phase-2-mechanics.html">Phase 2</a>
+    <div data-phase-menu></div>
     <button class="icon-btn" data-theme-toggle aria-label="Toggle dark mode">☾</button>
   </nav>
 </header>
@@ -28,63 +27,14 @@
     <h1>Python, from the object model up.</h1>
     <p class="lead">A focused path through how Python really works. Each module gives you the core idea, small examples you can paste into a REPL, a trick to make it stick, and a “predict the output” check.</p>
 
-    <div class="progress-strip" data-progress="m1,m2,m3,m4,m5,m6,m7,m8,m9,m10">
+    <div class="progress-strip" data-progress="">
       <div class="progress-bar"><span></span></div>
-      <small class="muted" data-progress-label>0 / 10 modules learned</small>
+      <small class="muted" data-progress-label>&nbsp;</small>
     </div>
   </section>
 
   <h2>The roadmap</h2>
-  <div class="phase-grid">
-    <a class="phase-card" href="phase-1-foundation.html">
-      <span class="phase-num">PHASE 1 · M1–M5</span>
-      <h3>The Foundation</h3>
-      <ul>
-        <li>Object model — identity, type, value</li>
-        <li>Variables, references &amp; copying</li>
-        <li>list, dict, set, tuple internals</li>
-        <li>Strings, bytes &amp; Unicode</li>
-        <li>Functions, LEGB &amp; closures</li>
-      </ul>
-      <div class="status"><span class="ready">● Ready</span><span>Start →</span></div>
-    </a>
-    <a class="phase-card" href="phase-2-mechanics.html">
-      <span class="phase-num">PHASE 2 · M6–M10</span>
-      <h3>The Mechanics</h3>
-      <ul>
-        <li>Iterators &amp; generators</li>
-        <li>Decorators &amp; factories</li>
-        <li>OOP, MRO &amp; dunder methods</li>
-        <li>Exceptions &amp; context managers</li>
-        <li>Comprehensions, functools, itertools</li>
-      </ul>
-      <div class="status"><span class="ready">● Ready</span><span>Start →</span></div>
-    </a>
-    <div class="phase-card locked">
-      <span class="phase-num">PHASE 3 · M11–M13</span>
-      <h3>CPython Internals</h3>
-      <ul><li>Compilation &amp; bytecode</li><li>Memory management</li><li>The GIL</li></ul>
-      <div class="status">Coming soon</div>
-    </div>
-    <div class="phase-card locked">
-      <span class="phase-num">PHASE 4 · M14–M16</span>
-      <h3>Concurrency &amp; Parallelism</h3>
-      <ul><li>Threading</li><li>Multiprocessing</li><li>Asyncio</li></ul>
-      <div class="status">Coming soon</div>
-    </div>
-    <div class="phase-card locked">
-      <span class="phase-num">PHASE 5 · M17–M20</span>
-      <h3>Production Python</h3>
-      <ul><li>Modules, packages &amp; imports</li><li>Type hints</li><li>Testing</li><li>Performance &amp; profiling</li></ul>
-      <div class="status">Coming soon</div>
-    </div>
-    <div class="phase-card locked">
-      <span class="phase-num">PHASE 6 · M21–M22</span>
-      <h3>Design &amp; Architecture</h3>
-      <ul><li>Design patterns</li><li>System design with Python</li></ul>
-      <div class="status">Coming soon</div>
-    </div>
-  </div>
+  <div class="phase-grid" data-phase-grid></div>
 
   <h2>How each module works</h2>
   <div class="how-grid">

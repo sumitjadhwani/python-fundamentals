@@ -32,4 +32,5 @@ assets/js/app.js           # sidebar, copy buttons, flashcards, progress, theme
 
 ## Adding a phase
 
-Copy an existing phase page, keep the `<section class="module" id="mN" data-title="...">` structure — the sidebar and "mark as learned" progress are built from those sections automatically. Add the new module ids to `data-progress` on `index.html`.
+1. Copy an existing phase page and keep the `<section class="module" id="mN" data-title="...">` structure — the sidebar and "mark as learned" buttons are built from those sections automatically.
+2. In `assets/js/app.js`, set `ready: true` on the phase in the `PHASES` list. The top-bar phase menu, the home page cards and the progress bar all read from it.

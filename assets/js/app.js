@@ -4,6 +4,33 @@
 
   const STORE_KEY = "pyfund:learned";
 
+  // Single source of truth for the roadmap: nav menu, home cards and progress all read this.
+  const PHASES = [
+    { n: 1, file: "phase-1-foundation.html", title: "The Foundation", range: "M1–M5", ready: true,
+      modules: ["m1", "m2", "m3", "m4", "m5"],
+      topics: ["Object model — identity, type, value", "Variables, references & copying", "list, dict, set, tuple internals", "Strings, bytes & Unicode", "Functions, LEGB & closures"] },
+    { n: 2, file: "phase-2-mechanics.html", title: "The Mechanics", range: "M6–M10", ready: true,
+      modules: ["m6", "m7", "m8", "m9", "m10"],
+      topics: ["Iterators & generators", "Decorators & factories", "OOP, MRO & dunder methods", "Exceptions & context managers", "Comprehensions, functools, itertools"] },
+    { n: 3, file: "phase-3-internals.html", title: "CPython Internals", range: "M11–M13", ready: false,
+      modules: ["m11", "m12", "m13"],
+      topics: ["Compilation & bytecode", "Memory management & GC", "The GIL"] },
+    { n: 4, file: "phase-4-concurrency.html", title: "Concurrency & Parallelism", range: "M14–M16", ready: false,
+      modules: ["m14", "m15", "m16"],
+      topics: ["Threading", "Multiprocessing", "Asyncio"] },
+    { n: 5, file: "phase-5-production.html", title: "Production Python", range: "M17–M20", ready: false,
+      modules: ["m17", "m18", "m19", "m20"],
+      topics: ["Modules, packages & imports", "Type hints", "Testing with pytest", "Performance & profiling"] },
+    { n: 6, file: "phase-6-design.html", title: "Design & Architecture", range: "M21–M22", ready: false,
+      modules: ["m21", "m22"],
+      topics: ["Pythonic design patterns", "Python in system design"] },
+  ];
+  const currentFile = location.pathname.split("/").pop() || "index.html";
+
+  function esc(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
   function readLearned() {
     try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
     catch (e) { return {}; }
@@ -33,6 +60,32 @@
       try { localStorage.setItem("pyfund:theme", next); } catch (e) {}
       syncThemeIcon(btn);
     });
+  });
+
+  // ---------- Phase menu (top bar) ----------
+  document.querySelectorAll("[data-phase-menu]").forEach((slot) => {
+    const current = PHASES.find((p) => p.file === currentFile);
+    const items = PHASES.map((p) => {
+      const cls = (p === current ? "active" : "") + (p.ready ? "" : " soon");
+      const inner = `<span class="num">${p.n}</span><span>${esc(p.title)}</span>${p.ready ? "" : '<small>soon</small>'}`;
+      return p.ready ? `<a class="${cls}" href="${p.file}">${inner}</a>` : `<span class="${cls}">${inner}</span>`;
+    }).join("");
+    slot.innerHTML = `<details class="phase-menu"><summary>${current ? "Phase " + current.n : "Phases"} ▾</summary><div class="phase-menu-list">${items}</div></details>`;
+  });
+  document.addEventListener("click", (e) => {
+    document.querySelectorAll("details.phase-menu[open]").forEach((d) => {
+      if (!d.contains(e.target)) d.removeAttribute("open");
+    });
+  });
+
+  // ---------- Home: phase cards ----------
+  document.querySelectorAll("[data-phase-grid]").forEach((grid) => {
+    grid.innerHTML = PHASES.map((p) => {
+      const topics = p.topics.map((t) => `<li>${esc(t)}</li>`).join("");
+      const head = `<span class="phase-num">PHASE ${p.n} · ${p.range}</span><h3>${esc(p.title)}</h3><ul>${topics}</ul>`;
+      if (!p.ready) return `<div class="phase-card locked">${head}<div class="status">Coming soon</div></div>`;
+      return `<a class="phase-card" href="${p.file}">${head}<div class="status"><span class="ready" data-phase-done="${p.n}">● Ready</span><span>Start →</span></div></a>`;
+    }).join("");
   });
 
   // ---------- Mobile menu ----------
@@ -129,8 +182,18 @@
   }
 
   // ---------- Home page progress ----------
+  const progressMap = readLearned();
+  PHASES.filter((p) => p.ready).forEach((p) => {
+    const done = p.modules.filter((id) => progressMap[id]).length;
+    document.querySelectorAll(`[data-phase-done="${p.n}"]`).forEach((el) => {
+      el.textContent = done ? `● ${done} / ${p.modules.length} learned` : "● Ready";
+    });
+  });
+
   document.querySelectorAll("[data-progress]").forEach((el) => {
-    const ids = el.dataset.progress.split(",");
+    const ids = el.dataset.progress
+      ? el.dataset.progress.split(",")
+      : PHASES.filter((p) => p.ready).flatMap((p) => p.modules);
     const map = readLearned();
     const done = ids.filter((id) => map[id]).length;
     const bar = el.querySelector(".progress-bar span");
