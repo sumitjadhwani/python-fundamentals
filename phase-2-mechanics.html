@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase 2 · The Mechanics — Python Fundamentals</title>
+  <meta name="description" content="Iterators & generators, decorators, OOP & dunder methods, error handling & context managers, comprehensions & functional tools — short notes, examples and memory tricks.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle menu">☰</button>
+  <a class="brand" href="index.html"><span class="brand-logo">py</span><span class="brand-text">Python Fundamentals</span></a>
+  <nav class="topnav">
+    <a href="index.html" class="hide-sm">Home</a>
+    <a href="phase-1-foundation.html">Phase 1</a>
+    <a href="phase-2-mechanics.html" class="active">Phase 2</a>
+    <button class="icon-btn" data-theme-toggle aria-label="Toggle dark mode">☾</button>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h4>Phase 2 · Modules</h4>
+    <ol data-sidebar-modules></ol>
+    <h4>Review</h4>
+    <ol>
+      <li><a href="#flashcards" data-target="flashcards">⚡ Quick-fire flashcards</a></li>
+      <li><a href="#gotchas" data-target="gotchas">⚠️ Gotchas checklist</a></li>
+    </ol>
+  </aside>
+
+  <main class="content">
+    <span class="eyebrow">Phase 2 of 6 · Modules 6–10</span>
+    <h1>The Mechanics</h1>
+    <p class="lead">The core language features that separate juniors from seniors: lazy iteration, decorators, how classes really work, robust error handling, and expressive functional tools.</p>
+
+    <ul class="roadmap">
+      <li><a href="#m6"><span class="num">M6</span> Iterators &amp; Generators</a></li>
+      <li><a href="#m7"><span class="num">M7</span> Decorators</a></li>
+      <li><a href="#m8"><span class="num">M8</span> OOP &amp; Dunders</a></li>
+      <li><a href="#m9"><span class="num">M9</span> Errors &amp; Context Managers</a></li>
+      <li><a href="#m10"><span class="num">M10</span> Comprehensions &amp; Functional</a></li>
+    </ul>
+
+    <!-- ===================================================== M6 -->
+    <section class="module" id="m6" data-title="M6 · Iterators &amp; Generators">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 6</span><h2>Iterators &amp; Generators</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>An <strong>iterable</strong> has <code>__iter__()</code>. An <strong>iterator</strong> has <code>__iter__()</code> <em>and</em> <code>__next__()</code>. A <code>for</code> loop calls <code>iter()</code> once, then <code>next()</code> until <code>StopIteration</code>. A <strong>generator</strong> is a function with <code>yield</code> — it builds an iterator for you.</p>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">Iterable = a <em>book</em>. Iterator = a <em>bookmark</em>.</p>
+        <p>You can open the same book many times (<code>iter()</code> gives a fresh bookmark), but a bookmark only moves forward and is done at the last page.</p>
+      </div>
+
+      <h3>What a <code>for</code> loop really does</h3>
+<pre><code class="language-python">nums = [10, 20, 30]
+
+# for x in nums: print(x)   is roughly:
+iterator = iter(nums)          # calls nums.__iter__()
+while True:
+    try:
+        x = next(iterator)     # calls iterator.__next__()
+    except StopIteration:
+        break
+    print(x)</code></pre>
+
+      <h3>Generators: paused functions</h3>
+<pre><code class="language-python">def countdown(n):
+    print("starting")
+    while n &gt; 0:
+        yield n        # pause here, hand n to the caller
+        n -= 1
+    print("done")
+
+gen = countdown(3)     # nothing printed yet — the body hasn't started!
+next(gen)              # prints "starting", returns 3
+next(gen)              # 2
+next(gen)              # 1
+next(gen)              # prints "done", raises StopIteration</code></pre>
+
+      <div class="flow">
+        <span class="step"><strong>CREATED</strong><br><small class="muted"><code>gen = f()</code></small></span>
+        <span class="arrow">→ <code>next()</code> →</span>
+        <span class="step"><strong>RUNNING</strong></span>
+        <span class="arrow">→ <code>yield</code> →</span>
+        <span class="step"><strong>SUSPENDED</strong><br><small class="muted">locals frozen</small></span>
+        <span class="arrow">→ return / <code>close()</code> →</span>
+        <span class="step"><strong>CLOSED</strong></span>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic"><code>yield</code> = the pause button on a movie.</p>
+        <p>Every local variable and the exact line are frozen; <code>next()</code> presses play.</p>
+      </div>
+
+      <h3>Lazy vs eager</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Approach</th><th>Memory</th><th>Reusable?</th></tr>
+        <tr><td>List comprehension <code>[x*x for x in data]</code></td><td>O(n) — builds everything now</td><td>✅ Yes</td></tr>
+        <tr><td>Generator expression <code>(x*x for x in data)</code></td><td><strong>O(1)</strong> — one item at a time</td><td>❌ Single use</td></tr>
+      </table></div>
+
+      <h3>The pipeline pattern</h3>
+      <p>Chain generators to process huge streams in constant memory. Nothing runs until the final loop pulls.</p>
+<pre><code class="language-python">def read_lines(path):
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            yield line
+
+def only_errors(lines):
+    return (l for l in lines if "ERROR" in l)
+
+def timestamps(lines):
+    return (l.split()[0] for l in lines)
+
+for ts in timestamps(only_errors(read_lines("50gb.log"))):
+    print(ts)      # one line flows through all three stages at a time</code></pre>
+
+      <h3>Infinite sequences</h3>
+<pre><code class="language-python">from itertools import islice
+
+def fibonacci():
+    a, b = 0, 1
+    while True:
+        yield a
+        a, b = b, a + b
+
+list(islice(fibonacci(), 10))   # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li>Generators are <strong>single-use</strong>: <code>list(gen)</code> a second time gives <code>[]</code>.</li>
+          <li><code>yield from sub</code> delegates to a sub-generator (and forwards <code>send</code>/<code>throw</code>/<code>close</code>).</li>
+          <li><code>return value</code> inside a generator ends it — the value rides on <code>StopIteration.value</code>.</li>
+          <li><code>gen.send(v)</code> allows two-way communication (rare in modern code).</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">squares = (n * n for n in range(4))
+print(sum(squares))
+print(sum(squares))</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>14
+0</pre>
+            <p>The first <code>sum</code> exhausted the generator. Need it twice? Use a list, or recreate the generator.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== M7 -->
+    <section class="module" id="m7" data-title="M7 · Decorators">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 7</span><h2>Decorators</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>A decorator is a function that takes a function and returns a (usually wrapped) function. <code>@decorator</code> is just syntax sugar:</p>
+        <p class="mnemonic" style="font-family: var(--font-mono); font-size: 1rem;">@dec<br>def f(): ...&nbsp;&nbsp;&nbsp;≡&nbsp;&nbsp;&nbsp;f = dec(f)</p>
+      </div>
+
+      <h3>The basic template</h3>
+<pre><code class="language-python">import functools
+import time
+
+def timer(func):
+    @functools.wraps(func)              # keep func's __name__ / __doc__
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)  # call the original
+        print(f"{func.__name__}: {time.perf_counter() - start:.3f}s")
+        return result                   # don't forget to return it!
+    return wrapper
+
+@timer
+def slow_add(a, b):
+    time.sleep(0.1)
+    return a + b
+
+slow_add(2, 3)      # prints "slow_add: 0.100s", returns 5</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — the 4-line skeleton</div>
+        <p><strong>“wraps, wrapper, call, return”</strong> — every decorator is: <code>@wraps(func)</code> → <code>def wrapper(*args, **kwargs)</code> → call <code>func(*args, **kwargs)</code> → <code>return</code> the result (and return <code>wrapper</code>).</p>
+      </div>
+
+      <h3>Decorators with arguments (factories)</h3>
+<pre><code class="language-python">def retry(max_attempts=3):              # 1. factory — takes the config
+    def decorator(func):                # 2. the real decorator — takes func
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):   # 3. wrapper — takes the call args
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except Exception:
+                    if attempt == max_attempts - 1:
+                        raise
+        return wrapper
+    return decorator
+
+@retry(max_attempts=5)     # retry(5) runs FIRST and returns `decorator`
+def call_api():
+    ...</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — the three-layer cake</div>
+        <p class="mnemonic">Config → Function → Call.</p>
+        <p>Outer layer eats the <em>settings</em>, middle layer eats the <em>function</em>, inner layer eats the <em>arguments</em>. Parentheses after the <code>@</code> name? You need the cake.</p>
+      </div>
+
+      <h3>Stacking order</h3>
+<pre><code class="language-python">@A
+@B
+@C
+def func(): ...
+
+# Same as: func = A(B(C(func)))
+# Applied bottom-up (C first), executed top-down (A's wrapper runs first)</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Built from the bottom, run from the top.”</p>
+        <p>Like putting on clothes: the decorator closest to <code>def</code> is the innermost layer (underwear); the top one is the coat — the first thing anyone touches.</p>
+      </div>
+
+      <h3>Class decorators</h3>
+<pre><code class="language-python">def singleton(cls):
+    instances = {}
+    @functools.wraps(cls, updated=())
+    def get_instance(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
+    return get_instance
+
+@singleton
+class Database:
+    pass
+
+Database() is Database()    # True</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li><strong>Always use <code>@functools.wraps(func)</code></strong> — without it, the decorated function reports <code>__name__ == "wrapper"</code> and loses its docstring.</li>
+          <li>Forgetting <code>return result</code> in the wrapper silently turns every return value into <code>None</code>.</li>
+          <li>Decorator code runs at <strong>definition (import) time</strong>; the wrapper runs at <strong>call time</strong>.</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">def shout(func):
+    def wrapper():
+        return func().upper()
+    return wrapper
+
+@shout
+def greet():
+    """Say hi."""
+    return "hi"
+
+print(greet())
+print(greet.__name__, greet.__doc__)</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>HI
+wrapper None</pre>
+            <p>No <code>@functools.wraps(func)</code> → the metadata belongs to <code>wrapper</code>. Add it and you'd get <code>greet Say hi.</code></p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== M8 -->
+    <section class="module" id="m8" data-title="M8 · OOP &amp; Dunders">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 8</span><h2>OOP in Python</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>Python OOP has its own rules: <code>super()</code> follows the <strong>MRO</strong> (not “the parent”), descriptors power <code>@property</code>, <code>__slots__</code> saves memory, and <strong>dunder methods</strong> are how your objects plug into built-in syntax (<code>print</code>, <code>==</code>, <code>len</code>, <code>if obj:</code> …).</p>
+      </div>
+
+      <h3><code>__new__</code> vs <code>__init__</code></h3>
+      <div class="table-wrap"><table>
+        <tr><th>Method</th><th>Job</th><th>Override when</th></tr>
+        <tr><td><code>__new__(cls)</code></td><td><strong>Creates</strong> and returns the instance</td><td>Singletons, subclassing immutables (<code>int</code>, <code>str</code>, <code>tuple</code>)</td></tr>
+        <tr><td><code>__init__(self)</code></td><td><strong>Initializes</strong> the already-created instance</td><td>Almost always — set attributes</td></tr>
+      </table></div>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic"><code>__new__</code> builds the house, <code>__init__</code> furnishes it.</p>
+      </div>
+
+      <h3>MRO &amp; <code>super()</code> — the diamond</h3>
+      <div class="diagram-box">
+        <svg viewBox="0 0 520 250" role="img" aria-label="Diamond inheritance: D inherits from B and C, both inherit from A. MRO is D, B, C, A, object.">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color: var(--text-muted)"/>
+            </marker>
+          </defs>
+          <g stroke="var(--text-muted)" stroke-width="1.5" fill="none" marker-end="url(#arr)">
+            <line x1="160" y1="58"  x2="110" y2="102"/>
+            <line x1="200" y1="58"  x2="250" y2="102"/>
+            <line x1="100" y1="148" x2="160" y2="192"/>
+            <line x1="260" y1="148" x2="200" y2="192"/>
+          </g>
+          <g font-size="18" font-weight="700" text-anchor="middle">
+            <rect x="150" y="14"  width="60" height="42" rx="10" fill="var(--warn-bg)" stroke="var(--warn)"/>
+            <text x="180" y="41">D</text>
+            <rect x="60"  y="104" width="60" height="42" rx="10" fill="var(--surface-2)" stroke="var(--border)"/>
+            <text x="90"  y="131">B</text>
+            <rect x="240" y="104" width="60" height="42" rx="10" fill="var(--surface-2)" stroke="var(--border)"/>
+            <text x="270" y="131">C</text>
+            <rect x="150" y="194" width="60" height="42" rx="10" fill="var(--surface-2)" stroke="var(--border)"/>
+            <text x="180" y="221">A</text>
+          </g>
+          <g font-size="13">
+            <text x="340" y="70" font-weight="700">MRO (lookup order)</text>
+            <text x="340" y="100" class="mono">1. D</text>
+            <text x="340" y="122" class="mono">2. B</text>
+            <text x="340" y="144" class="mono" font-weight="700" fill="var(--warn)">3. C  ← B's super()!</text>
+            <text x="340" y="166" class="mono">4. A</text>
+            <text x="340" y="188" class="mono">5. object</text>
+          </g>
+        </svg>
+        <div class="diagram-caption"><code>class D(B, C)</code> — <code>super()</code> inside <code>B</code> calls <code>C</code>, its sibling, not <code>A</code>.</div>
+      </div>
+
+<pre><code class="language-python">class A:
+    def method(self): print("A")
+
+class B(A):
+    def method(self):
+        print("B"); super().method()   # → C, not A!
+
+class C(A):
+    def method(self):
+        print("C"); super().method()
+
+class D(B, C):
+    def method(self):
+        print("D"); super().method()
+
+D().method()    # D  B  C  A
+D.__mro__       # (D, B, C, A, object)</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic"><code>super()</code> means “next in line”, not “my parent”.</p>
+        <p>C3 linearization rules: <strong>children before parents, left before right</strong>, and every class appears once.</p>
+      </div>
+
+      <h3><code>__slots__</code></h3>
+      <div class="table-wrap"><table>
+        <tr><th></th><th>Default</th><th>With <code>__slots__</code></th></tr>
+        <tr><td>Storage</td><td>A <code>__dict__</code> per instance</td><td>Fixed slots, no <code>__dict__</code></td></tr>
+        <tr><td>Memory</td><td>Higher</td><td>Roughly 40% less</td></tr>
+        <tr><td>Add new attrs at runtime</td><td>✅ <code>obj.anything = 1</code></td><td>❌ <code>AttributeError</code></td></tr>
+        <tr><td>Use when</td><td>Flexibility</td><td>Millions of small instances</td></tr>
+      </table></div>
+
+      <h3>Attribute lookup order</h3>
+      <ol>
+        <li><strong>Data descriptor</strong> on the class (has <code>__get__</code> + <code>__set__</code>) — e.g. <code>@property</code></li>
+        <li>Instance <code>__dict__</code></li>
+        <li><strong>Non-data descriptor</strong> on the class (only <code>__get__</code>) — e.g. plain methods</li>
+        <li><code>__getattr__()</code> as the last-resort fallback</li>
+      </ol>
+
+      <h3>Dunder methods: the Python Data Model</h3>
+      <h4><code>__repr__</code> vs <code>__str__</code></h4>
+      <div class="table-wrap"><table>
+        <tr><th></th><th><code>__repr__</code></th><th><code>__str__</code></th></tr>
+        <tr><td>Audience</td><td>Developers / debugging</td><td>End users / display</td></tr>
+        <tr><td>Goal</td><td>Unambiguous, ideally <code>eval()</code>-able</td><td>Pretty and readable</td></tr>
+        <tr><td>Fallback</td><td>Used when <code>__str__</code> is missing</td><td>Never used as a fallback</td></tr>
+      </table></div>
+
+<pre><code class="language-python">class Money:
+    def __init__(self, amount, currency="USD"):
+        self.amount = amount
+        self.currency = currency
+
+    def __repr__(self):
+        return f"Money({self.amount!r}, {self.currency!r})"   # dev view
+
+    def __str__(self):
+        return f"${self.amount:.2f} {self.currency}"           # user view
+
+m = Money(9.5)
+print(m)        # $9.50 USD          → __str__
+m               # Money(9.5, 'USD')  → __repr__ (REPL)
+print([m])      # [Money(9.5, 'USD')] ← containers use __repr__!</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic"><strong>r</strong>epr is for <strong>r</strong>esearchers (devs), <strong>s</strong>tr is for <strong>s</strong>hoppers (users).</p>
+        <p>Always write <code>__repr__</code>. Add <code>__str__</code> only if users need a different view.</p>
+      </div>
+
+      <h4>The <code>__eq__</code> / <code>__hash__</code> contract</h4>
+      <div class="callout good">
+        <div class="callout-title">✅ Memorize this</div>
+        <p class="mnemonic">If <code>a == b</code>, then <code>hash(a) == hash(b)</code> MUST be true.</p>
+        <p>(The reverse isn't required — hash collisions are fine.) Hash the <strong>same fields</strong> you compare.</p>
+      </div>
+
+<pre><code class="language-python">class Point:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+
+    def __eq__(self, other):
+        if not isinstance(other, Point):
+            return NotImplemented       # ← NOT False!
+        return (self.x, self.y) == (other.x, other.y)
+
+    def __hash__(self):
+        return hash((self.x, self.y))   # same fields as __eq__</code></pre>
+
+      <p><strong>Why <code>NotImplemented</code>?</strong> It tells Python <em>“I don't know how to compare with that — ask the other object.”</em> For <code>a == b</code> Python tries <code>a.__eq__(b)</code>, then the reflected <code>b.__eq__(a)</code>, then falls back to identity. (If <code>b</code>'s type is a subclass of <code>a</code>'s, the reflected call goes <em>first</em>.) Returning <code>False</code> would wrongly shut that conversation down.</p>
+
+      <div class="table-wrap"><table>
+        <tr><th>You define</th><th>Python does</th></tr>
+        <tr><td>Nothing</td><td><code>__eq__</code> uses identity, <code>__hash__</code> uses <code>id()</code></td></tr>
+        <tr><td><code>__eq__</code> only</td><td><strong>Sets <code>__hash__ = None</code></strong> → instances are unhashable ⚠️</td></tr>
+        <tr><td><code>__eq__</code> + <code>__hash__</code></td><td>Uses yours</td></tr>
+      </table></div>
+
+      <h4>Truthiness fallback chain</h4>
+      <div class="flow">
+        <span class="step"><code>if obj:</code></span>
+        <span class="arrow">→</span>
+        <span class="step"><code>__bool__()</code></span>
+        <span class="arrow">→ missing? →</span>
+        <span class="step"><code>__len__() != 0</code></span>
+        <span class="arrow">→ missing? →</span>
+        <span class="step">always <code>True</code></span>
+      </div>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Bool, then Length, then Yes.”</p>
+        <p>Falsy built-ins: <code>0</code>, <code>0.0</code>, <code>""</code>, <code>[]</code>, <code>{}</code>, <code>set()</code>, <code>None</code>, <code>False</code>. Everything else is truthy.</p>
+      </div>
+
+      <h4>Mutable fields + hashing = ghost entries</h4>
+<pre><code class="language-python">users = {user}               # stored in the bucket for hash(user.email)
+user.email = "new@x.com"     # mutated AFTER insertion
+user in users                # False! — looks in the wrong bucket
+# The entry is now a ghost: unreachable, undeletable, no warning.</code></pre>
+      <p>Fix: make hashed fields immutable with <code>@dataclass(frozen=True)</code>.</p>
+
+      <h4><code>dataclasses</code> — dunders for free</h4>
+      <div class="table-wrap"><table>
+        <tr><th><code>@dataclass</code> option</th><th><code>__eq__</code></th><th><code>__hash__</code></th><th>Mutable?</th></tr>
+        <tr><td>default</td><td>✅</td><td>❌ (<code>None</code>)</td><td>✅</td></tr>
+        <tr><td><code>frozen=True</code></td><td>✅</td><td>✅</td><td>❌</td></tr>
+        <tr><td><code>unsafe_hash=True</code></td><td>✅</td><td>✅</td><td>✅ ⚠️</td></tr>
+      </table></div>
+
+<pre><code class="language-python">from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class Coordinate:
+    lat: float
+    lon: float
+    # auto: __init__, __repr__, __eq__, __hash__ — and immutable
+
+home = Coordinate(18.52, 73.85)
+visits = {home: 3}             # ✅ safe as a dict key
+home.lat = 0                   # ❌ FrozenInstanceError</code></pre>
+
+      <h4>The inheritance hash trap</h4>
+<pre><code class="language-python">class Animal:
+    def __init__(self, name): self.name = name
+    def __eq__(self, other):
+        if not isinstance(other, Animal): return NotImplemented
+        return self.name == other.name
+    def __hash__(self): return hash(self.name)
+
+class Dog(Animal):
+    def __init__(self, name, breed):
+        super().__init__(name); self.breed = breed
+    def __eq__(self, other):
+        if not isinstance(other, Dog): return NotImplemented
+        return (self.name, self.breed) == (other.name, other.breed)
+    def __hash__(self): return hash((self.name, self.breed))
+
+a, d = Animal("Rex"), Dog("Rex", "Labrador")
+a == d                  # True  (Animal.__eq__ accepts any Animal)
+hash(a) == hash(d)      # False → CONTRACT VIOLATED</code></pre>
+      <p>Fix: compare with a strict type check — <code>type(other) is type(self)</code> — instead of <code>isinstance</code>.</p>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li><code>super()</code> follows the MRO — critical with multiple inheritance.</li>
+          <li><code>__slots__</code> removes <code>__dict__</code> → no dynamic attributes.</li>
+          <li><code>@property</code>, <code>@classmethod</code>, <code>@staticmethod</code> are all descriptors.</li>
+          <li>Return <code>NotImplemented</code> (not <code>False</code>) from <code>__eq__</code> for unknown types.</li>
+          <li><code>print([obj])</code> uses <code>__repr__</code> on the elements.</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">class Box:
+    def __init__(self, items): self.items = items
+    def __len__(self): return len(self.items)
+
+class Tag:
+    def __eq__(self, other): return True
+
+print(bool(Box([])), bool(Box([1])))
+print({Tag()})</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>False True
+TypeError: unhashable type: 'Tag'
+# (Python 3.14 words it: "cannot use 'Tag' as a set element (unhashable type: 'Tag')")</pre>
+            <p><code>Box</code> has no <code>__bool__</code>, so truthiness falls back to <code>__len__</code>. <code>Tag</code> defines <code>__eq__</code> without <code>__hash__</code>, so Python sets <code>__hash__ = None</code>.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== M9 -->
+    <section class="module" id="m9" data-title="M9 · Errors &amp; Context Managers">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 9</span><h2>Error Handling &amp; Context Managers</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>Catch <code>Exception</code> (or something more specific) — never a bare <code>except:</code> or <code>BaseException</code>. Context managers (<code>with</code>) guarantee cleanup via <code>__enter__</code> / <code>__exit__</code>.</p>
+      </div>
+
+      <h3>The hierarchy that matters</h3>
+      <div class="tree">
+        <ul>
+          <li><span class="bad">BaseException</span> <span class="note">← never catch this</span>
+            <ul>
+              <li><span class="bad">SystemExit</span> <span class="note">— <code>sys.exit()</code>: let it exit</span></li>
+              <li><span class="bad">KeyboardInterrupt</span> <span class="note">— Ctrl+C: let it interrupt</span></li>
+              <li><span class="ok">Exception</span> <span class="note">← catch this (or narrower)</span>
+                <ul>
+                  <li>ValueError, TypeError, KeyError, IndexError, OSError, …</li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic"><code>BaseException</code> is the building's fire alarm — not your problem to silence.</p>
+        <p>A bare <code>except:</code> swallows Ctrl+C and <code>sys.exit()</code>, making the process unkillable.</p>
+      </div>
+
+      <h3><code>try / except / else / finally</code></h3>
+<pre><code class="language-python">try:
+    result = operation()        # the risky bit — keep it small
+except ValueError as e:         # runs if THAT error happened
+    handle_error(e)
+else:                           # runs ONLY if no exception
+    save(result)
+finally:                        # ALWAYS runs — cleanup
+    close_connection()</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">Try it → <em>Except</em> if it fails → <em>Else</em> if it worked → <em>Finally</em> no matter what.</p>
+        <p>Put success-path code in <code>else</code>, not in <code>try</code>, so you don't accidentally catch its errors too.</p>
+      </div>
+
+      <h3>Custom exceptions &amp; chaining</h3>
+<pre><code class="language-python">import json
+
+class APIError(Exception):
+    def __init__(self, status_code, message):
+        self.status_code = status_code
+        super().__init__(f"HTTP {status_code}: {message}")
+
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError as e:
+    raise APIError(400, "Invalid JSON") from e   # keeps the original cause</code></pre>
+
+      <h3>Context managers</h3>
+<pre><code class="language-python"># Class-based
+class Timer:
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self                      # bound to `as t`
+    def __exit__(self, exc_type, exc, tb):
+        print(f"took {time.perf_counter() - self.start:.3f}s")
+        return False                     # False → don't swallow exceptions
+
+# Generator-based shortcut
+from contextlib import contextmanager
+
+@contextmanager
+def timer(label):
+    start = time.perf_counter()
+    try:
+        yield                            # body of the `with` runs here
+    finally:
+        print(f"{label}: {time.perf_counter() - start:.3f}s")
+
+with timer("load"):
+    load_data()</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">Before <code>yield</code> = <code>__enter__</code>, after <code>yield</code> = <code>__exit__</code>.</p>
+        <p>Wrap the <code>yield</code> in <code>try/finally</code> so the cleanup runs even if the body raises.</p>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li><code>__exit__</code> returning <code>True</code> <strong>suppresses</strong> the exception — use with extreme care.</li>
+          <li><code>raise X from Y</code> preserves the original cause in the traceback.</li>
+          <li><code>else</code> runs only when no exception was raised.</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">def f():
+    try:
+        return "try"
+    finally:
+        print("finally runs")
+
+print(f())</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>finally runs
+try</pre>
+            <p><code>finally</code> runs even when <code>try</code> returns — just before the function actually exits.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== M10 -->
+    <section class="module" id="m10" data-title="M10 · Comprehensions &amp; Functional">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 10</span><h2>Comprehensions &amp; Functional Tools</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>Comprehensions are concise loops that build a collection. <code>functools</code> gives higher-order helpers; <code>itertools</code> gives lazy iterator building blocks.</p>
+      </div>
+
+      <h3>Four kinds of comprehension</h3>
+<pre><code class="language-python">words = ["apple", "kiwi", "banana"]
+
+[len(w) for w in words]               # list → [5, 4, 6]
+{w: len(w) for w in words}            # dict → {'apple': 5, 'kiwi': 4, 'banana': 6}
+{len(w) for w in words}               # set  → {4, 5, 6}
+(len(w) for w in words)               # generator — lazy, no tuple comprehension!
+
+[w for w in words if len(w) &gt; 4]      # filter   → ['apple', 'banana']
+["long" if len(w) &gt; 4 else "short" for w in words]  # if/else goes BEFORE for</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — brackets decide the type</div>
+        <p><code>[ ]</code> → list · <code>{k: v}</code> → dict · <code>{ }</code> → set · <code>( )</code> → generator (not a tuple!).</p>
+        <p><strong>Filter <code>if</code> goes at the end; ternary <code>if/else</code> goes at the front.</strong></p>
+      </div>
+
+      <h3>Reading nested comprehensions</h3>
+<pre><code class="language-python">matrix = [[1, 2], [3, 4], [5, 6]]
+[num for row in matrix for num in row]     # [1, 2, 3, 4, 5, 6]
+
+# ≡ the same order as normal loops:
+# for row in matrix:
+#     for num in row:
+#         result.append(num)</code></pre>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">Read the <code>for</code>s left-to-right as if they were stacked top-to-bottom.</p>
+      </div>
+
+      <h3><code>functools</code> essentials</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Tool</th><th>Purpose</th><th>Gotcha</th></tr>
+        <tr><td><code>lru_cache(maxsize)</code> / <code>cache</code></td><td>Memoization</td><td>Arguments must be <strong>hashable</strong></td></tr>
+        <tr><td><code>partial(func, *args)</code></td><td>Pre-fill some arguments</td><td>Returns a new callable</td></tr>
+        <tr><td><code>reduce(func, iterable)</code></td><td>Fold a sequence into one value</td><td>Must import from <code>functools</code></td></tr>
+        <tr><td><code>wraps(func)</code></td><td>Keep metadata in decorators</td><td>Always use it</td></tr>
+      </table></div>
+
+<pre><code class="language-python">from functools import lru_cache, partial, reduce
+
+@lru_cache(maxsize=256)
+def fib(n):
+    return n if n &lt; 2 else fib(n - 1) + fib(n - 2)
+
+fib(100)              # instant — 354224848179261915075
+fib.cache_info()      # CacheInfo(hits=98, misses=101, maxsize=256, currsize=101)
+fib.cache_clear()
+
+square = partial(pow, exp=2)
+square(9)             # 81
+
+reduce(lambda acc, x: acc * x, [1, 2, 3, 4])   # 24</code></pre>
+
+      <h3><code>itertools</code> top 5</h3>
+<pre><code class="language-python">from itertools import chain, islice, groupby, product, combinations
+
+list(chain([1, 2], [3, 4]))          # [1, 2, 3, 4]       — flatten / concatenate
+list(islice(range(100), 5, 10))      # [5, 6, 7, 8, 9]    — slice ANY iterator
+list(product("AB", "12"))            # A1 A2 B1 B2        — cartesian product
+list(combinations("ABC", 2))         # AB AC BC           — unordered pairs
+
+data = ["apple", "avocado", "banana", "blueberry", "cherry"]
+{k: list(g) for k, g in groupby(data, key=lambda s: s[0])}
+# {'a': ['apple', 'avocado'], 'b': ['banana', 'blueberry'], 'c': ['cherry']}</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Sort before you group.”</p>
+        <p><code>groupby</code> only groups <em>consecutive</em> equal keys — like a cashier who starts a new receipt whenever the item changes.</p>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li><code>lru_cache</code> needs hashable args — passing a <code>list</code> → <code>TypeError</code>. Convert to a tuple.</li>
+          <li><code>lru_cache</code> holds references to args and results → can keep large objects alive.</li>
+          <li><code>groupby</code> on unsorted input gives split, wrong groups.</li>
+          <li>Generator expressions are single-use.</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">from itertools import groupby
+
+nums = [1, 1, 2, 1, 1]
+print([(k, len(list(g))) for k, g in groupby(nums)])</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>[(1, 2), (2, 1), (1, 2)]</pre>
+            <p>Key <code>1</code> shows up twice because the input wasn't sorted. <code>groupby(sorted(nums))</code> → <code>[(1, 4), (2, 1)]</code>.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== REVIEW -->
+    <section class="spy" id="flashcards">
+      <h2>⚡ Quick-fire flashcards</h2>
+      <p class="muted">Answer out loud, then tap the card to check yourself.</p>
+      <div class="flashcards">
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What's a decorator?</div><div class="flashcard-face flashcard-back">A function that takes a function and returns a modified one. <code>@dec</code> ≡ <code>f = dec(f)</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Explain MRO.</div><div class="flashcard-face flashcard-back">C3 linearization — children before parents, left before right. <code>super()</code> calls the next class in the MRO. Check with <code>Cls.__mro__</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Iterator vs iterable?</div><div class="flashcard-face flashcard-back">Iterable has <code>__iter__</code>. Iterator has <code>__iter__</code> + <code>__next__</code>. All iterators are iterable, not vice versa.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Why use generators?</div><div class="flashcard-face flashcard-back">Lazy evaluation, O(1) memory on huge data, and composable pipelines.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What's wrong with a bare <code>except:</code>?</div><div class="flashcard-face flashcard-back">It catches <code>BaseException</code> — including Ctrl+C and <code>sys.exit()</code>. Use <code>except Exception</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>lru_cache</code> on a function that takes a list?</div><div class="flashcard-face flashcard-back"><code>TypeError</code> — lists are unhashable. Pass a tuple.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What does <code>__slots__</code> do?</div><div class="flashcard-face flashcard-back">Replaces the per-instance <code>__dict__</code> with fixed slots — big memory savings, no dynamic attributes.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Decorator with arguments?</div><div class="flashcard-face flashcard-back">A factory: the outer function takes the args and returns the real decorator. Three levels: factory → decorator → wrapper.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>yield from</code> vs <code>yield</code>?</div><div class="flashcard-face flashcard-back"><code>yield from</code> delegates to a sub-iterator and forwards <code>send</code>/<code>throw</code>/<code>close</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>groupby</code> gotcha?</div><div class="flashcard-face flashcard-back">Input must be sorted by the grouping key — it only groups consecutive items.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>__repr__</code> or <code>__str__</code> — which is required?</div><div class="flashcard-face flashcard-back">Always <code>__repr__</code> (it's also the fallback for <code>str()</code>). Add <code>__str__</code> only for a different user-facing view.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Why return <code>NotImplemented</code> from <code>__eq__</code>?</div><div class="flashcard-face flashcard-back">It lets Python try the other operand's <code>__eq__</code>. <code>False</code> would wrongly claim “definitely not equal”.</div></div></button>
+      </div>
+    </section>
+
+    <section class="spy" id="gotchas">
+      <h2>⚠️ Gotchas checklist</h2>
+      <p class="muted">Skim this the night before an interview.</p>
+      <ol class="gotchas">
+        <li>Missing <code>@functools.wraps</code> → decorated function loses <code>__name__</code> and <code>__doc__</code>.</li>
+        <li>Generators are single-use — a second pass yields nothing.</li>
+        <li><code>super()</code> follows the MRO, not the parent — the diamond trap.</li>
+        <li>Bare <code>except:</code> catches <code>KeyboardInterrupt</code> → unkillable process.</li>
+        <li><code>__exit__</code> returning <code>True</code> silently suppresses exceptions.</li>
+        <li><code>lru_cache</code> args must be hashable — lists and dicts → <code>TypeError</code>.</li>
+        <li><code>groupby</code> requires pre-sorted input.</li>
+        <li><code>__slots__</code> removes <code>__dict__</code> — no dynamic attributes.</li>
+        <li>Defining <code>__eq__</code> without <code>__hash__</code> → unhashable class.</li>
+        <li>Decorator factory = three nesting levels (factory → decorator → wrapper).</li>
+        <li>Mutating a hashed field after putting the object in a set/dict → ghost entry.</li>
+        <li><code>print([obj])</code> shows <code>__repr__</code>, not <code>__str__</code>.</li>
+      </ol>
+    </section>
+
+    <nav class="pager">
+      <a href="phase-1-foundation.html"><small>← Previous</small>Phase 1 · The Foundation</a>
+      <a class="next" href="index.html"><small>Next →</small>Phase 3 · CPython Internals (coming soon)</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="footer">Python Fundamentals · Phase 2 · Notes adapted from <a href="https://github.com/HrushiMakode/Notes/tree/master/Python">HrushiMakode/Notes</a></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
