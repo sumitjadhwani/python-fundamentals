@@ -21,7 +21,7 @@
     { n: 5, file: "phase-5-production.html", title: "Production Python", range: "M17–M20", ready: true,
       modules: ["m17", "m18", "m19", "m20"],
       topics: ["Modules, packages & imports", "Type hints", "Testing with pytest", "Performance & profiling"] },
-    { n: 6, file: "phase-6-design.html", title: "Design & Architecture", range: "M21–M22", ready: false,
+    { n: 6, file: "phase-6-design.html", title: "Design & Architecture", range: "M21–M22", ready: true,
       modules: ["m21", "m22"],
       topics: ["Pythonic design patterns", "Python in system design"] },
   ];

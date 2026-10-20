@@ -8,7 +8,10 @@ A small static website for learning Python fundamentals — short notes, runnabl
 |------|---------|--------|
 | `phase-1-foundation.html` | M1–M5: Object Model, Variables & Memory, Data Structures, Strings & Unicode, Functions & Scoping | ✅ |
 | `phase-2-mechanics.html` | M6–M10: Iterators & Generators, Decorators, OOP & Dunders, Errors & Context Managers, Comprehensions & Functional Tools | ✅ |
-| Phases 3–6 | Internals, Concurrency, Production, Design | Coming soon |
+| `phase-3-internals.html` | M11–M13: Compilation & Bytecode, Memory Management, The GIL | ✅ |
+| `phase-4-concurrency.html` | M14–M16: Threading, Multiprocessing, Asyncio | ✅ |
+| `phase-5-production.html` | M17–M20: Modules & Imports, Type Hints, Testing, Performance | ✅ |
+| `phase-6-design.html` | M21–M22: Design Patterns, System Design, plus an all-phases revision sheet | ✅ |
 
 ## Run locally
 
@@ -26,6 +29,10 @@ Then open http://localhost:8000.
 index.html                 # home / roadmap + progress
 phase-1-foundation.html
 phase-2-mechanics.html
+phase-3-internals.html
+phase-4-concurrency.html
+phase-5-production.html
+phase-6-design.html
 assets/css/style.css       # shared styles (light + dark theme)
 assets/js/app.js           # sidebar, copy buttons, flashcards, progress, theme
 ```

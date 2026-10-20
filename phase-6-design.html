@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase 6 · Design &amp; Architecture — Python Fundamentals</title>
+  <meta name="description" content="Pythonic design patterns and Python in system design — WSGI/ASGI, Gunicorn, Celery, connection pooling — plus a final all-phases revision sheet.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle menu">☰</button>
+  <a class="brand" href="index.html"><span class="brand-logo">py</span><span class="brand-text">Python Fundamentals</span></a>
+  <nav class="topnav">
+    <a href="index.html" class="hide-sm">Home</a>
+    <div data-phase-menu></div>
+    <button class="icon-btn" data-theme-toggle aria-label="Toggle dark mode">☾</button>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h4>Phase 6 · Modules</h4>
+    <ol data-sidebar-modules></ol>
+    <h4>Review</h4>
+    <ol>
+      <li><a href="#flashcards" data-target="flashcards">⚡ Quick-fire flashcards</a></li>
+      <li><a href="#gotchas" data-target="gotchas">⚠️ Gotchas checklist</a></li>
+      <li><a href="#numbers" data-target="numbers">🔢 Numbers to remember</a></li>
+      <li><a href="#final" data-target="final">🏁 All-phases final sheet</a></li>
+    </ol>
+  </aside>
+
+  <main class="content">
+    <span class="eyebrow">Phase 6 of 6 · Modules 21–22</span>
+    <h1>Design &amp; Architecture</h1>
+    <p class="lead">Think like a senior: the Pythonic way to apply design patterns, how Python services are deployed and scaled, and an honest view of where Python fits.</p>
+
+    <ul class="roadmap">
+      <li><a href="#m21"><span class="num">M21</span> Design Patterns</a></li>
+      <li><a href="#m22"><span class="num">M22</span> System Design</a></li>
+      <li><a href="#final"><span class="num">🏁</span> Final revision</a></li>
+    </ul>
+
+    <!-- ===================================================== M21 -->
+    <section class="module" id="m21" data-title="M21 · Design Patterns">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 21</span><h2>Design Patterns in Python</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>Python needs <strong>fewer classic design patterns</strong> than Java or C++. First-class functions, duck typing, modules and generators replace much of the ceremony. If a pattern needs five classes, there's usually a one-function Python version.</p>
+      </div>
+
+      <div class="table-wrap"><table>
+        <tr><th>Pattern</th><th>Java way</th><th>Python way</th></tr>
+        <tr><td>Strategy</td><td>Interface + classes</td><td><strong>Pass a function</strong></td></tr>
+        <tr><td>Observer</td><td>Listener interface</td><td>List of callbacks</td></tr>
+        <tr><td>Singleton</td><td>Private constructor</td><td><strong>A module-level object</strong></td></tr>
+        <tr><td>Factory</td><td>Factory class</td><td>A function, or a registry dict</td></tr>
+        <tr><td>Iterator</td><td>Iterator class</td><td>Generator function</td></tr>
+        <tr><td>Decorator / Proxy</td><td>Wrapper class</td><td><code>@decorator</code></td></tr>
+        <tr><td>Template method</td><td>Abstract base class</td><td>Function with a callback argument</td></tr>
+        <tr><td>Builder / DTO</td><td>Builder class</td><td><code>@dataclass</code></td></tr>
+      </table></div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — the four swaps</div>
+        <p class="mnemonic">Functions replace classes · Modules replace singletons · Generators replace iterators · <code>with</code> replaces try/finally.</p>
+      </div>
+
+      <h3>Singleton — use the module</h3>
+<pre data-label="config.py"><code class="language-python">class Settings:
+    def __init__(self):
+        self.debug = False
+        self.db_url = "postgres://localhost/app"
+
+settings = Settings()        # created once, on first import</code></pre>
+<pre data-label="anywhere.py"><code class="language-python">from config import settings  # every importer gets the SAME object (sys.modules cache)</code></pre>
+<pre><code class="language-python"># If you truly need a class-level singleton:
+class Singleton:
+    _instance = None
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+Singleton() is Singleton()   # True</code></pre>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“A module <em>is</em> a singleton.”</p>
+        <p>It's executed once and cached in <code>sys.modules</code> (Phase 5) — no tricks needed.</p>
+      </div>
+
+      <h3>Strategy — just pass a function</h3>
+<pre><code class="language-python">def process(data, transform):
+    return [transform(item) for item in data]
+
+names = ["ada", "guido", "grace"]
+process(names, str.upper)            # ['ADA', 'GUIDO', 'GRACE']
+process(names, lambda s: s[:2])      # ['ad', 'gu', 'gr']
+sorted(names, key=len)               # the stdlib does this everywhere: key=, default=…</code></pre>
+
+      <h3>Registry / plugins with <code>__init_subclass__</code></h3>
+<pre><code class="language-python">class Handler:
+    registry = {}
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        Handler.registry[cls.__name__.lower()] = cls   # runs when a subclass is DEFINED
+
+class JsonHandler(Handler): pass
+class XmlHandler(Handler): pass
+
+Handler.registry
+# {'jsonhandler': JsonHandler, 'xmlhandler': XmlHandler}  ← auto-registered
+
+def make_handler(kind):              # factory = a dict lookup
+    return Handler.registry[kind]()</code></pre>
+
+      <h3>Resource management — a context manager</h3>
+<pre><code class="language-python">from contextlib import contextmanager
+
+@contextmanager
+def managed_connection(url):
+    conn = create_connection(url)
+    try:
+        yield conn
+    finally:
+        conn.close()                 # guaranteed, even on exceptions
+
+with managed_connection("postgres://...") as conn:
+    conn.execute("SELECT 1")</code></pre>
+
+      <h3>Data containers — <code>@dataclass</code></h3>
+<pre><code class="language-python">from dataclasses import dataclass, field
+
+@dataclass
+class Config:
+    host: str
+    port: int = 8080
+    tags: list[str] = field(default_factory=list)   # never `= []` (Phase 1 trap!)
+
+    def __post_init__(self):                         # validation hook
+        if not 0 &lt; self.port &lt; 65536:
+            raise ValueError("port out of range")
+
+Config("localhost")   # Config(host='localhost', port=8080, tags=[])</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li>Don't over-engineer — porting Java patterns 1:1 makes Python code worse.</li>
+          <li><code>__init_subclass__</code> (3.6+) is the simple way to build plugin registries; no metaclass needed.</li>
+          <li>Mutable dataclass defaults need <code>field(default_factory=...)</code> — <code>@dataclass</code> raises an error if you write <code>= []</code>.</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">class Plugin:
+    names = []
+    def __init_subclass__(cls, **kw):
+        super().__init_subclass__(**kw)
+        Plugin.names.append(cls.__name__)
+
+class A(Plugin): pass
+class B(A): pass
+
+print(Plugin.names)</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>['A', 'B']</pre>
+            <p>The hook fires for every subclass at any depth — <code>B</code> inherits from <code>A</code>, which inherits from <code>Plugin</code> — and it fires at class definition time, without creating instances.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== M22 -->
+    <section class="module" id="m22" data-title="M22 · System Design">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 22</span><h2>Python in System Design</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>Python web services scale with <strong>processes, not threads</strong>: an app server runs several worker processes (each with its own GIL), slow work goes to a <strong>task queue</strong>, and connections are <strong>pooled</strong>. Know the stack and be honest about Python's limits.</p>
+      </div>
+
+      <h3>The typical Python web stack</h3>
+      <div class="flow">
+        <span class="step">Client</span><span class="arrow">→</span>
+        <span class="step">Load balancer<br><small class="muted">Nginx / ALB</small></span><span class="arrow">→</span>
+        <span class="step">App server<br><small class="muted">Gunicorn / Uvicorn</small></span><span class="arrow">→</span>
+        <span class="step"><strong>Your app</strong><br><small class="muted">Django / Flask / FastAPI</small></span><span class="arrow">→</span>
+        <span class="step">Redis · PostgreSQL · Celery</span>
+      </div>
+
+      <h3>WSGI vs ASGI</h3>
+      <div class="table-wrap"><table>
+        <tr><th></th><th>WSGI</th><th>ASGI</th></tr>
+        <tr><td>Model</td><td>Synchronous</td><td>Async-native</td></tr>
+        <tr><td>Frameworks</td><td>Flask, Django (classic)</td><td>FastAPI, Starlette, Django (async views)</td></tr>
+        <tr><td>Server</td><td>Gunicorn</td><td>Uvicorn, Hypercorn</td></tr>
+        <tr><td>WebSockets / streaming</td><td>❌</td><td>✅</td></tr>
+        <tr><td>Best for</td><td>Classic REST and CRUD</td><td>WebSockets, streaming, high-concurrency I/O</td></tr>
+      </table></div>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">The “A” in ASGI is for <strong>A</strong>sync.</p>
+      </div>
+
+      <h3>Gunicorn workers</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Worker class</th><th>Model</th><th>Use when</th></tr>
+        <tr><td><code>sync</code></td><td>One request at a time per process</td><td>Simple or CPU-heavy APIs</td></tr>
+        <tr><td><code>gthread</code></td><td>Thread pool inside each process</td><td>I/O-heavy app on a sync framework</td></tr>
+        <tr><td><code>uvicorn.workers.UvicornWorker</code></td><td>Event loop per process</td><td>FastAPI / ASGI apps</td></tr>
+      </table></div>
+<pre data-label="shell"><code class="language-bash">gunicorn app:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+# classic starting point: workers = (2 × CPU cores) + 1</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Workers are processes — each brings its own GIL.”</p>
+        <p>That's how a Python web app uses every core: parallelism lives at the process level, so the GIL stops mattering.</p>
+      </div>
+
+      <h3>Background jobs with Celery</h3>
+      <div class="flow">
+        <span class="step">Web API<br><small class="muted"><code>task.delay()</code></small></span><span class="arrow">→</span>
+        <span class="step">Broker<br><small class="muted">Redis / RabbitMQ</small></span><span class="arrow">→</span>
+        <span class="step">Workers 1…N</span><span class="arrow">→</span>
+        <span class="step">Result backend<br><small class="muted">optional</small></span>
+      </div>
+<pre data-label="python · needs: pip install celery redis"><code class="language-python">from celery import Celery
+
+app = Celery("tasks", broker="redis://localhost:6379/0")
+
+@app.task(bind=True, max_retries=3, default_retry_delay=60)
+def process_order(self, order_id):        # pass IDs, not objects
+    try:
+        return charge_and_ship(order_id)
+    except TransientError as exc:
+        raise self.retry(exc=exc)
+
+process_order.delay(42)                   # returns immediately; a worker runs it</code></pre>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — Celery's golden rules</div>
+        <p class="mnemonic">“Idempotent, serializable, time-boxed.”</p>
+        <ul>
+          <li><strong>Idempotent</strong> — retries will happen; running twice must be safe.</li>
+          <li><strong>Serializable</strong> — JSON-friendly args (IDs, not ORM objects).</li>
+          <li><strong>Time-boxed</strong> — set <code>task_time_limit</code> so stuck workers die; <code>task_acks_late=True</code> for at-least-once delivery.</li>
+        </ul>
+      </div>
+
+      <h3>Connection pooling</h3>
+<pre data-label="python · SQLAlchemy"><code class="language-python">from sqlalchemy import create_engine
+
+engine = create_engine(
+    "postgresql://user:pass@db/app",
+    pool_size=20,          # keep 20 connections open
+    max_overflow=10,       # allow 10 extra under load
+    pool_pre_ping=True,    # check a connection is alive before using it
+    pool_recycle=3600,     # replace connections after an hour
+)</code></pre>
+      <p>Opening a database connection can take tens of milliseconds (TCP, TLS, auth). A pool pays that once and reuses connections — mandatory in production for DBs, Redis and HTTP clients.</p>
+
+      <h3>An async endpoint (FastAPI)</h3>
+<pre data-label="python · needs: pip install fastapi uvicorn"><code class="language-python">from fastapi import FastAPI, BackgroundTasks
+
+app = FastAPI()
+
+@app.get("/users/{user_id}")
+async def get_user(user_id: int):          # path param is validated as int
+    return {"user": await db.fetch_user(user_id)}
+
+@app.post("/orders")
+async def create_order(order: OrderIn, bg: BackgroundTasks):
+    order_id = await db.insert_order(order)
+    bg.add_task(send_confirmation_email, order.email)   # runs after the response
+    return {"order_id": order_id}</code></pre>
+
+      <h3>Is Python the right tool?</h3>
+      <div class="split">
+        <div class="imm">
+          <h4>✅ Python wins</h4>
+          <ul>
+            <li>Rapid prototyping and product iteration</li>
+            <li>Data, ML and AI pipelines (NumPy, pandas, PyTorch)</li>
+            <li>Automation, scripting and glue code</li>
+            <li>Web APIs at moderate scale</li>
+          </ul>
+        </div>
+        <div class="mut">
+          <h4>⚠️ Consider something else</h4>
+          <ul>
+            <li>Sub-millisecond latency → Go, Rust, C++</li>
+            <li>Heavy CPU work without C extensions → Rust, Go</li>
+            <li>Mobile / embedded → Swift, Kotlin, C</li>
+            <li>Browser front-end → TypeScript</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Quick decision guide</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Building…</th><th>Typical choice</th></tr>
+        <tr><td>Classic REST / CRUD app</td><td>Django or Flask + Gunicorn (sync workers)</td></tr>
+        <tr><td>WebSockets, streaming, high-concurrency I/O</td><td>FastAPI + Uvicorn</td></tr>
+        <tr><td>Background jobs</td><td>Celery + Redis / RabbitMQ</td></tr>
+        <tr><td>Scheduled data pipelines</td><td>Airflow, Prefect, Dagster</td></tr>
+        <tr><td>ML model serving</td><td>FastAPI (async) or a dedicated model server</td></tr>
+      </table></div>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li>A sync worker is blocked for the whole request — size the worker count to the traffic.</li>
+          <li>Never call blocking libraries inside <code>async def</code> endpoints (Phase 4) — use async drivers or a plain <code>def</code> endpoint, which FastAPI runs in a thread pool.</li>
+          <li>Python's edge is ecosystem and development speed, not raw performance.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===================================================== REVIEW -->
+    <section class="spy" id="flashcards">
+      <h2>⚡ Quick-fire flashcards</h2>
+      <p class="muted">Answer out loud, then tap the card to check yourself.</p>
+      <div class="flashcards">
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">How do Python web apps use multiple cores?</div><div class="flashcard-face flashcard-back">Multiple worker processes (Gunicorn), each with its own GIL. Start with (2 × CPU) + 1.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">WSGI vs ASGI?</div><div class="flashcard-face flashcard-back">WSGI = sync (Flask, classic Django). ASGI = async (FastAPI) — needed for WebSockets and streaming.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">How do you run background tasks?</div><div class="flashcard-face flashcard-back">Celery with a Redis/RabbitMQ broker. Tasks must be idempotent with serializable args.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Singleton in Python?</div><div class="flashcard-face flashcard-back">A module-level instance — modules are imported once and cached.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Why fewer design patterns in Python?</div><div class="flashcard-face flashcard-back">First-class functions (Strategy), modules (Singleton), generators (Iterator), decorators (Proxy).</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">When NOT to use Python?</div><div class="flashcard-face flashcard-back">Sub-ms latency, heavy CPU without C extensions, mobile/embedded.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Why connection pooling?</div><div class="flashcard-face flashcard-back">Opening connections is slow (TCP + TLS + auth). Pools reuse them — SQLAlchemy <code>pool_size</code>, Redis <code>ConnectionPool</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Plugin registry without a metaclass?</div><div class="flashcard-face flashcard-back"><code>__init_subclass__</code> on the base class registers each subclass when it's defined.</div></div></button>
+      </div>
+    </section>
+
+    <section class="spy" id="gotchas">
+      <h2>⚠️ Gotchas checklist</h2>
+      <ol class="gotchas">
+        <li>Gunicorn workers are processes, not threads — each has its own GIL.</li>
+        <li>Worker formula: <code>(2 × CPU cores) + 1</code> as a starting point.</li>
+        <li>Celery tasks must be idempotent — retries happen.</li>
+        <li>Celery args must be serializable — pass IDs, not objects.</li>
+        <li>Connection pooling is mandatory in production.</li>
+        <li>A module-level instance is the Pythonic singleton.</li>
+        <li><code>__init_subclass__</code> for plugin registries.</li>
+        <li>First-class functions remove the need for many classic patterns.</li>
+        <li>FastAPI + Uvicorn for async; Django/Flask + Gunicorn for sync.</li>
+        <li>Python's strength is ecosystem and speed of development, not raw speed.</li>
+      </ol>
+    </section>
+
+    <!-- ===================================================== FINAL -->
+    <section class="spy" id="numbers">
+      <h2>🔢 Numbers to remember</h2>
+      <div class="table-wrap"><table>
+        <tr><th>Item</th><th>Value</th><th>Phase</th></tr>
+        <tr><td>Small-int cache</td><td><code>-5</code> … <code>256</code></td><td>1</td></tr>
+        <tr><td><code>sys.getrefcount()</code></td><td>Real count + 1</td><td>1</td></tr>
+        <tr><td>Dict resize point</td><td>~⅔ full</td><td>1</td></tr>
+        <tr><td><code>lru_cache</code> default <code>maxsize</code></td><td>128</td><td>2</td></tr>
+        <tr><td>Recursion limit</td><td>1000 (<code>sys.getrecursionlimit()</code>)</td><td>2</td></tr>
+        <tr><td>GC thresholds</td><td><code>(700, 10, 10)</code> classic · <code>(2000, 10, 0)</code> in 3.14</td><td>3</td></tr>
+        <tr><td>GIL switch interval</td><td>5 ms (<code>sys.getswitchinterval()</code>)</td><td>3</td></tr>
+        <tr><td>pymalloc</td><td>Objects ≤ 512 B · pools 4 KB · arenas 256 KB</td><td>3</td></tr>
+        <tr><td>Thread stack</td><td>~8 MB reserved (Linux default)</td><td>4</td></tr>
+        <tr><td>Process overhead</td><td>Tens of MB</td><td>4</td></tr>
+        <tr><td>Coroutine overhead</td><td>~1 KB</td><td>4</td></tr>
+        <tr><td>Gunicorn workers</td><td><code>(2 × CPU cores) + 1</code></td><td>6</td></tr>
+      </table></div>
+    </section>
+
+    <section class="spy" id="final">
+      <h2>🏁 All-phases final sheet</h2>
+      <p class="muted">The 20 traps that come up most often, across the whole course.</p>
+      <ol class="gotchas">
+        <li><code>is</code> for values → wrong. Only for <code>None</code>, <code>True</code>, <code>False</code>.</li>
+        <li>The small-int cache is a CPython detail — never rely on it.</li>
+        <li><code>def f(x=[])</code> → shared across calls; use a <code>None</code> sentinel.</li>
+        <li><code>+=</code> on a list mutates in place; on a tuple it creates a new object.</li>
+        <li><code>del</code> deletes the name, not the object.</li>
+        <li>Pass-by-object-reference: mutations travel, rebinds stay home.</li>
+        <li><code>list.pop(0)</code> is O(n) → <code>deque</code>.</li>
+        <li><code>defaultdict</code> inserts on read.</li>
+        <li>String <code>+=</code> in a loop is O(n²) → <code>join()</code>.</li>
+        <li><code>len(str)</code> counts characters, <code>len(bytes)</code> counts bytes.</li>
+        <li>Generators are single-use.</li>
+        <li>Late-binding closures → <code>lambda i=i: i</code>.</li>
+        <li><code>@functools.wraps</code> is non-negotiable in decorators.</li>
+        <li><code>super()</code> follows the MRO, not the parent.</li>
+        <li>Bare <code>except:</code> swallows Ctrl+C.</li>
+        <li><code>lru_cache</code> needs hashable arguments.</li>
+        <li><code>counter += 1</code> is not thread-safe.</li>
+        <li>The GIL protects CPython internals, not your code.</li>
+        <li><code>fork</code> + threads = deadlocks.</li>
+        <li>Mock where it's imported, not where it's defined.</li>
+      </ol>
+      <div class="callout good">
+        <div class="callout-title">🎉 You made it</div>
+        <p>That's all six phases. Come back to the flashcards and gotcha lists before interviews — and mark modules as learned to track what still needs a second pass.</p>
+      </div>
+    </section>
+
+    <nav class="pager">
+      <a href="phase-5-production.html"><small>← Previous</small>Phase 5 · Production Python</a>
+      <a class="next" href="index.html"><small>Done →</small>Back to the roadmap</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="footer">Python Fundamentals · Phase 6</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
