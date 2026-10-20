@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase 3 · CPython Internals — Python Fundamentals</title>
+  <meta name="description" content="Compilation & bytecode, memory management & garbage collection, and the GIL — short notes, examples and memory tricks.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle menu">☰</button>
+  <a class="brand" href="index.html"><span class="brand-logo">py</span><span class="brand-text">Python Fundamentals</span></a>
+  <nav class="topnav">
+    <a href="index.html" class="hide-sm">Home</a>
+    <div data-phase-menu></div>
+    <button class="icon-btn" data-theme-toggle aria-label="Toggle dark mode">☾</button>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h4>Phase 3 · Modules</h4>
+    <ol data-sidebar-modules></ol>
+    <h4>Review</h4>
+    <ol>
+      <li><a href="#flashcards" data-target="flashcards">⚡ Quick-fire flashcards</a></li>
+      <li><a href="#gotchas" data-target="gotchas">⚠️ Gotchas checklist</a></li>
+    </ol>
+  </aside>
+
+  <main class="content">
+    <span class="eyebrow">Phase 3 of 6 · Modules 11–13</span>
+    <h1>CPython Internals</h1>
+    <p class="lead">What actually happens when you hit “Run” — how source becomes bytecode, how memory is reclaimed, and why the GIL exists.</p>
+
+    <ul class="roadmap">
+      <li><a href="#m11"><span class="num">M11</span> Compilation &amp; Bytecode</a></li>
+      <li><a href="#m12"><span class="num">M12</span> Memory Management</a></li>
+      <li><a href="#m13"><span class="num">M13</span> The GIL</a></li>
+    </ul>
+
+    <!-- ===================================================== M11 -->
+    <section class="module" id="m11" data-title="M11 · Compilation &amp; Bytecode">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 11</span><h2>Compilation &amp; Bytecode</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>Python is <strong>compiled to bytecode</strong>, then that bytecode is <strong>interpreted</strong> by the Python Virtual Machine (PVM). So it's both — there is a compile step, but it produces bytecode (<code>.pyc</code>), not machine code.</p>
+      </div>
+
+      <div class="flow">
+        <span class="step">Source <code>.py</code></span>
+        <span class="arrow">→</span>
+        <span class="step">Tokenizer</span>
+        <span class="arrow">→</span>
+        <span class="step">AST</span>
+        <span class="arrow">→</span>
+        <span class="step">Compiler</span>
+        <span class="arrow">→</span>
+        <span class="step">Bytecode <code>.pyc</code></span>
+        <span class="arrow">→</span>
+        <span class="step"><strong>PVM</strong> executes</span>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Translate once, cook many times.”</p>
+        <p>The compiler translates your recipe into kitchen shorthand (bytecode) and keeps it in <code>__pycache__</code>. The chef (PVM) cooks from the shorthand every run.</p>
+      </div>
+
+      <h3>Peek at the bytecode with <code>dis</code></h3>
+<pre><code class="language-python">import dis
+
+def add(a, b):
+    return a + b
+
+dis.dis(add)</code></pre>
+<pre class="diagram">  RESUME                            0
+  LOAD_FAST_BORROW_LOAD_FAST_BORROW 1 (a, b)    ← push a and b
+  BINARY_OP                         0 (+)       ← pop two, push a + b
+  RETURN_VALUE                                  ← pop and return</pre>
+      <p class="muted">Output from Python 3.14. Opcode names change between versions (older ones show <code>LOAD_FAST</code> / <code>BINARY_ADD</code>) — the shape is what matters.</p>
+
+      <h3>It's a stack machine</h3>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — a stack of plates</div>
+        <p><code>LOAD_*</code> puts a plate on the stack. <code>BINARY_OP</code> takes two plates off and puts the result back. <code>STORE_*</code> takes the top plate and gives it a name. <code>RETURN_VALUE</code> hands the top plate to the caller.</p>
+      </div>
+
+      <h3><code>.pyc</code> files</h3>
+      <ul>
+        <li>Live in <code>__pycache__/</code>, named per version: <code>module.cpython-314.pyc</code>.</li>
+        <li>Rebuilt when the source changes (timestamp or hash check).</li>
+        <li><strong>Version-specific</strong> — 3.12 bytecode won't run on 3.14.</li>
+        <li><code>PYTHONDONTWRITEBYTECODE=1</code> stops Python writing them.</li>
+        <li>The script you run directly isn't cached — only imported modules are.</li>
+      </ul>
+
+      <h3>Constant folding</h3>
+<pre><code class="language-python">def seconds_per_day():
+    return 24 * 60 * 60
+
+seconds_per_day.__code__.co_consts   # (24, 86400) — 86400 was computed at COMPILE time
+
+# Folding has limits: "a" * 1000 is folded, a huge "a" * 10_000 is not
+# (CPython won't bake very large constants into the .pyc)</code></pre>
+
+      <h3>Code objects</h3>
+<pre><code class="language-python">def example(x):
+    return x * 2 + 1
+
+code = example.__code__
+code.co_varnames     # ('x',)         local names
+code.co_consts       # constants used (exact tuple varies by version)
+code.co_stacksize    # max stack depth the function needs
+
+c = compile("1 + 2", "&lt;string&gt;", "eval")   # compile a string yourself
+eval(c)              # 3</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li>“Interpreted vs compiled?” → <strong>both</strong>: compiled to bytecode, then interpreted.</li>
+          <li>Bytecode isn't portable across Python versions.</li>
+          <li>Since 3.11 the interpreter <em>specializes</em> hot bytecode (adaptive interpreter) — one reason modern Python got faster.</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">def f():
+    return 60 * 60
+
+print(3600 in f.__code__.co_consts)</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>True</pre>
+            <p>The compiler folded <code>60 * 60</code> into <code>3600</code>, so the multiplication never happens at runtime.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== M12 -->
+    <section class="module" id="m12" data-title="M12 · Memory Management">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 12</span><h2>Memory Management</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>CPython frees memory mainly with <strong>reference counting</strong> — deterministic and immediate. A separate <strong>cyclic garbage collector</strong> cleans up reference cycles that refcounting alone can never free.</p>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — bouncer &amp; security sweep</div>
+        <p><strong>Refcounting is the bouncer at the door</strong>: the instant the last reference leaves, the object is out. <strong>The GC is a periodic security sweep</strong> that finds groups of objects only holding on to each other and evicts them together.</p>
+      </div>
+
+      <h3>Reference counting</h3>
+<pre><code class="language-python">import sys
+
+x = [1, 2, 3]
+sys.getrefcount(x)   # 2 → x, plus the temporary reference for the call itself
+
+y = x                # 3
+del y                # 2
+del x                # 0 → freed immediately (deterministic!)</code></pre>
+
+      <h3>Reference cycles</h3>
+<pre><code class="language-python">import gc
+
+a = []
+b = []
+a.append(b)          # a → b
+b.append(a)          # b → a   ← cycle: refcounts never reach 0
+del a, b             # unreachable, but not freed yet...
+
+gc.collect()         # 2 → the cycle collector found and freed both lists</code></pre>
+
+      <h3>Generations</h3>
+      <p>Most objects die young, so the GC checks new objects often and old ones rarely.</p>
+      <div class="table-wrap"><table>
+        <tr><th>Python version</th><th>Layout</th><th><code>gc.get_threshold()</code></th></tr>
+        <tr><td>≤ 3.13 (classic)</td><td>3 generations: gen 0 (new) → gen 1 → gen 2 (long-lived)</td><td><code>(700, 10, 10)</code></td></tr>
+        <tr><td>3.14+</td><td><strong>Incremental</strong> GC: a young and an old generation, scanned in small steps to shorten pauses</td><td><code>(2000, 10, 0)</code></td></tr>
+      </table></div>
+      <p class="muted">Classic rule: gen 0 runs when allocations − deallocations exceed 700; gen 1 every 10 gen-0 runs; gen 2 every 10 gen-1 runs. Interview answers usually quote this model.</p>
+
+      <h3>Memory allocator layers</h3>
+<pre class="diagram">┌───────────────────────────────────────────────┐
+│ Layer 3: object-specific caches (ints, lists…)│
+├───────────────────────────────────────────────┤
+│ Layer 2: pymalloc — objects ≤ 512 bytes        │
+│   Arena (256 KB) → Pool (4 KB) → Block (8–512 B)│
+├───────────────────────────────────────────────┤
+│ Layer 1: the OS malloc — anything bigger        │
+└───────────────────────────────────────────────┘</pre>
+
+      <h3>Weak references</h3>
+<pre><code class="language-python">import weakref
+
+class Thing: pass
+
+obj = Thing()
+ref = weakref.ref(obj)    # does NOT bump the refcount
+ref()                     # &lt;Thing object at ...&gt;
+del obj
+ref()                     # None — the object is gone
+
+cache = weakref.WeakValueDictionary()   # entries vanish when values die</code></pre>
+
+      <h3>Finding leaks with <code>tracemalloc</code></h3>
+<pre><code class="language-python">import tracemalloc
+
+tracemalloc.start()
+run_suspicious_code()
+snapshot = tracemalloc.take_snapshot()
+for stat in snapshot.statistics("lineno")[:5]:
+    print(stat)           # top 5 lines by memory allocated</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li><strong><code>__del__</code> is unreliable</strong> — timing is unpredictable and it can resurrect objects. Use context managers for cleanup.</li>
+          <li><code>gc.disable()</code> stops only the <em>cycle</em> collector. Refcounting keeps working.</li>
+          <li>Common real leaks: unbounded global caches, closures capturing big objects, C extensions.</li>
+        </ul>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“<code>gc.disable()</code> sends the sweepers home — the bouncer stays.”</p>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">import gc, weakref
+
+class Node: pass
+
+n = Node()
+r = weakref.ref(n)
+gc.disable()
+del n
+print(r())</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>None</pre>
+            <p>No cycle here, so refcounting frees the object the moment <code>n</code> is deleted — disabling the GC doesn't matter.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== M13 -->
+    <section class="module" id="m13" data-title="M13 · The GIL">
+      <div class="module-head">
+        <div><span class="module-tag">MODULE 13</span><h2>The GIL (Global Interpreter Lock)</h2></div>
+        <button class="learn-btn" type="button">Mark as learned</button>
+      </div>
+
+      <div class="callout core">
+        <div class="callout-title">🔑 Core idea</div>
+        <p>The GIL is a <strong>mutex that lets only one thread run Python bytecode at a time</strong>. It exists because CPython's reference counts aren't thread-safe. It blocks CPU parallelism with threads — but I/O-bound threads work fine, because the GIL is released while waiting on I/O.</p>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — the one-microphone room</div>
+        <p>Only the person holding the mic (thread) can speak (run bytecode). When someone steps out for food (I/O), the mic is free for others. Shouting louder (more threads) doesn't make two people speak at once.</p>
+      </div>
+
+<pre class="diagram">Thread 1:  ████░░░░████░░░░████
+Thread 2:  ░░░░████░░░░████░░░░
+               ↑ the interpreter asks for a switch every 5 ms (sys.getswitchinterval())</pre>
+
+      <h3>What the GIL does — and doesn't — protect</h3>
+      <div class="split">
+        <div class="imm">
+          <h4>✅ Protects</h4>
+          <ul><li>CPython internals (refcounts, allocator)</li><li>Each single bytecode instruction</li></ul>
+        </div>
+        <div class="mut">
+          <h4>❌ Does NOT protect</h4>
+          <ul><li>Your data structures</li><li>Multi-step operations like <code>counter += 1</code></li><li>The logic of your program</li></ul>
+        </div>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“The GIL guards Python's guts, not your data.”</p>
+      </div>
+
+      <h3>Why <code>counter += 1</code> isn't thread-safe</h3>
+<pre class="diagram">LOAD_GLOBAL     counter   ← read
+LOAD_SMALL_INT  1
+BINARY_OP       (+=)      ← add
+STORE_GLOBAL    counter   ← write      (a thread switch can land between any two)</pre>
+<pre><code class="language-python">import threading
+
+counter = 0
+lock = threading.Lock()
+
+def increment():
+    global counter
+    for _ in range(1_000_000):
+        with lock:            # without the lock, updates can be lost
+            counter += 1
+
+threads = [threading.Thread(target=increment) for _ in range(2)]
+for t in threads: t.start()
+for t in threads: t.join()
+print(counter)                # 2000000 — guaranteed only because of the lock</code></pre>
+
+      <h3>When is the GIL released?</h3>
+      <ul>
+        <li>Blocking I/O — files, sockets, <code>time.sleep()</code></li>
+        <li>Many C extensions while crunching numbers (NumPy, hashing, compression, DB drivers)</li>
+      </ul>
+
+      <h3>The decision rule</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Bottleneck</th><th>Use</th><th>Why</th></tr>
+        <tr><td>I/O-bound</td><td>Threads (or asyncio)</td><td>GIL is released while waiting</td></tr>
+        <tr><td>CPU-bound</td><td>Multiprocessing</td><td>Each process has its own GIL</td></tr>
+        <tr><td>Both</td><td>asyncio + <code>ProcessPoolExecutor</code></td><td>Async for I/O, processes for compute</td></tr>
+      </table></div>
+
+      <h3>The free-threaded future (PEP 703)</h3>
+      <p>Python 3.13 shipped an experimental <strong>free-threaded</strong> build with no GIL (<code>python3.13t</code>). In 3.14 that build is officially supported, but it's still a separate build — the regular <code>python</code> keeps the GIL. Check with <code>sys._is_gil_enabled()</code>.</p>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Don't forget</div>
+        <ul>
+          <li>The GIL makes CPython safe, not your code — always lock shared mutable state.</li>
+          <li>Threads don't speed up pure-Python CPU work; they can even slow it down.</li>
+        </ul>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python"># Same counter program as above, but WITHOUT the lock.
+# What does print(counter) show?</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>Unpredictable — anything up to 2000000.</pre>
+            <p>On some versions and machines it often prints the right number, which makes the bug worse: the code is still wrong and can lose updates at any time. Correctness must come from the lock, not from luck.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== REVIEW -->
+    <section class="spy" id="flashcards">
+      <h2>⚡ Quick-fire flashcards</h2>
+      <p class="muted">Answer out loud, then tap the card to check yourself.</p>
+      <div class="flashcards">
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Is Python interpreted or compiled?</div><div class="flashcard-face flashcard-back">Both — compiled to bytecode, then interpreted by the PVM.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What's a <code>.pyc</code> file?</div><div class="flashcard-face flashcard-back">Cached bytecode in <code>__pycache__/</code>, rebuilt when the source changes. Version-specific.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">How does Python manage memory?</div><div class="flashcard-face flashcard-back">Reference counting (primary, immediate) + a cyclic GC for reference cycles.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What is the GIL?</div><div class="flashcard-face flashcard-back">A mutex letting one thread run bytecode at a time. Protects CPython internals. Released during I/O.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Is <code>counter += 1</code> thread-safe?</div><div class="flashcard-face flashcard-back">No — it's several bytecode steps (read, add, write). Use a <code>Lock</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">CPU-bound parallelism in CPython?</div><div class="flashcard-face flashcard-back"><code>multiprocessing</code> — each process has its own interpreter and GIL.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Why avoid <code>__del__</code>?</div><div class="flashcard-face flashcard-back">Unpredictable timing, can resurrect objects. Use context managers for cleanup.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>weakref</code> use case?</div><div class="flashcard-face flashcard-back">Caches that shouldn't keep objects alive — e.g. <code>WeakValueDictionary</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">How can Python leak memory?</div><div class="flashcard-face flashcard-back">Unbounded global caches, closures holding big objects, C extensions, lingering references.</div></div></button>
+      </div>
+    </section>
+
+    <section class="spy" id="gotchas">
+      <h2>⚠️ Gotchas checklist</h2>
+      <p class="muted">Skim this the night before an interview.</p>
+      <ol class="gotchas">
+        <li>Python is compiled (to bytecode), not purely interpreted.</li>
+        <li><code>.pyc</code> is version-specific.</li>
+        <li>Constant folding: <code>24 * 60 * 60</code> is computed at compile time.</li>
+        <li><code>__del__</code> timing is unpredictable — use context managers.</li>
+        <li>Refcounting is deterministic: refcount 0 → freed immediately.</li>
+        <li>The cyclic GC only handles cycles — refcounting does most of the work.</li>
+        <li><code>gc.disable()</code> disables the cycle collector only.</li>
+        <li>The GIL protects CPython internals, not your data structures.</li>
+        <li><code>counter += 1</code> is not atomic — use a lock.</li>
+        <li>I/O-bound → threads work. CPU-bound → multiprocessing.</li>
+        <li>Free-threaded (no-GIL) Python is a separate build, not the default.</li>
+        <li>pymalloc handles objects ≤ 512 bytes; bigger ones go to the OS allocator.</li>
+      </ol>
+    </section>
+
+    <nav class="pager">
+      <a href="phase-2-mechanics.html"><small>← Previous</small>Phase 2 · The Mechanics</a>
+      <a class="next" href="index.html"><small>Next →</small>Phase 4 · Concurrency (coming soon)</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="footer">Python Fundamentals · Phase 3</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

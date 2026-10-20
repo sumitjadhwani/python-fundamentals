@@ -12,7 +12,7 @@
     { n: 2, file: "phase-2-mechanics.html", title: "The Mechanics", range: "M6–M10", ready: true,
       modules: ["m6", "m7", "m8", "m9", "m10"],
       topics: ["Iterators & generators", "Decorators & factories", "OOP, MRO & dunder methods", "Exceptions & context managers", "Comprehensions, functools, itertools"] },
-    { n: 3, file: "phase-3-internals.html", title: "CPython Internals", range: "M11–M13", ready: false,
+    { n: 3, file: "phase-3-internals.html", title: "CPython Internals", range: "M11–M13", ready: true,
       modules: ["m11", "m12", "m13"],
       topics: ["Compilation & bytecode", "Memory management & GC", "The GIL"] },
     { n: 4, file: "phase-4-concurrency.html", title: "Concurrency & Parallelism", range: "M14–M16", ready: false,
