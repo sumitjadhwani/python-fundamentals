@@ -283,6 +283,33 @@ kbd {
   font-size: 1.15rem; font-weight: 700; letter-spacing: 0.01em; margin: 2px 0 4px;
 }
 
+/* ---------- Module intro & optional deep dive ---------- */
+.analogy {
+  display: flex; gap: 14px; align-items: flex-start;
+  margin: 18px 0; padding: 14px 18px;
+  border: 1px dashed var(--border); border-radius: var(--radius); background: var(--surface);
+}
+.analogy .emoji { font-size: 1.8rem; line-height: 1; flex: none; }
+.analogy p { margin: 0.2em 0; }
+.analogy strong:first-child { display: block; margin-bottom: 2px; }
+
+details.deeper {
+  margin: 24px 0 8px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface);
+}
+details.deeper > summary {
+  cursor: pointer; list-style: none; user-select: none;
+  padding: 12px 18px; font-weight: 600;
+  display: flex; align-items: center; gap: 10px;
+}
+details.deeper > summary::-webkit-details-marker { display: none; }
+details.deeper > summary::after { content: "Show ▾"; margin-left: auto; font-size: 0.8rem; color: var(--accent); font-weight: 600; }
+details.deeper[open] > summary::after { content: "Hide ▴"; }
+details.deeper > summary small { font-weight: 400; color: var(--text-muted); }
+details.deeper > .deeper-body { padding: 0 18px 16px; border-top: 1px solid var(--border); }
+details.deeper h3:first-child, details.deeper h4:first-child { margin-top: 1em; }
+
 /* ---------- Tables ---------- */
 .table-wrap { overflow-x: auto; margin: 16px 0; border: 1px solid var(--border); border-radius: var(--radius); }
 table { width: 100%; border-collapse: collapse; font-size: 0.93rem; background: var(--surface); }

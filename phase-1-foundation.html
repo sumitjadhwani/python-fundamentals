@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Phase 1 · The Foundation — Python Fundamentals</title>
-  <meta name="description" content="Python object model, variables & memory, data structures, strings & Unicode, functions & scoping — short notes, examples and memory tricks.">
+  <meta name="description" content="Objects, variables, lists/dicts/sets, strings and functions explained in plain English, with small examples and memory tricks.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -29,442 +29,531 @@
     <h4>Review</h4>
     <ol>
       <li><a href="#flashcards" data-target="flashcards">⚡ Quick-fire flashcards</a></li>
-      <li><a href="#gotchas" data-target="gotchas">⚠️ Gotchas checklist</a></li>
+      <li><a href="#gotchas" data-target="gotchas">⚠️ Common mistakes</a></li>
     </ol>
   </aside>
 
   <main class="content">
     <span class="eyebrow">Phase 1 of 6 · Modules 1–5</span>
     <h1>The Foundation</h1>
-    <p class="lead">Build an unshakable mental model of how Python actually works — what an object is, what a variable really is, how the core containers behave, and how names are looked up.</p>
+    <p class="lead">The five ideas everything else in Python is built on: what a value is, what a variable is, the four built-in containers, text, and functions.</p>
+
+    <div class="callout good">
+      <div class="callout-title">📖 How to read each module</div>
+      <p>Start with <strong>In plain English</strong> and the example. Run the code yourself — every snippet works in a Python shell, and the <code># →</code> comments show what it prints. The <strong>Go deeper</strong> box at the end of each module is optional: skip it on your first pass.</p>
+    </div>
 
     <ul class="roadmap">
-      <li><a href="#m1"><span class="num">M1</span> Object Model</a></li>
-      <li><a href="#m2"><span class="num">M2</span> Variables &amp; Memory</a></li>
-      <li><a href="#m3"><span class="num">M3</span> Data Structures</a></li>
-      <li><a href="#m4"><span class="num">M4</span> Strings &amp; Unicode</a></li>
-      <li><a href="#m5"><span class="num">M5</span> Functions &amp; Scoping</a></li>
+      <li><a href="#m1"><span class="num">M1</span> Objects</a></li>
+      <li><a href="#m2"><span class="num">M2</span> Variables</a></li>
+      <li><a href="#m3"><span class="num">M3</span> Lists, Dicts &amp; Sets</a></li>
+      <li><a href="#m4"><span class="num">M4</span> Strings</a></li>
+      <li><a href="#m5"><span class="num">M5</span> Functions</a></li>
     </ul>
 
     <!-- ===================================================== M1 -->
-    <section class="module" id="m1" data-title="M1 · Object Model">
+    <section class="module" id="m1" data-title="M1 · Objects">
       <div class="module-head">
-        <div><span class="module-tag">MODULE 1</span><h2>The Python Object Model</h2></div>
+        <div><span class="module-tag">MODULE 1</span><h2>Everything is an Object</h2></div>
         <button class="learn-btn" type="button">Mark as learned</button>
       </div>
 
       <div class="callout core">
-        <div class="callout-title">🔑 Core idea</div>
-        <p><strong>Everything in Python is an object</strong> — integers, strings, functions, classes, modules, even <code>None</code>. Every object has exactly three things:</p>
+        <div class="callout-title">💬 In plain English</div>
+        <p>Every value in Python — a number, a piece of text, a list, even a function — is an <strong>object</strong>: a thing that lives in memory. Each object has three things: <strong>an id</strong> (where it lives), <strong>a type</strong> (what kind of thing it is) and <strong>a value</strong> (what's inside).</p>
       </div>
 
-      <div class="table-wrap"><table>
-        <tr><th>Property</th><th>What it is</th><th>Can it change?</th><th>Inspect with</th></tr>
-        <tr><td><strong>Identity</strong></td><td>Unique id (memory address in CPython)</td><td>Never</td><td><code>id(x)</code></td></tr>
-        <tr><td><strong>Type</strong></td><td>What kind of object it is</td><td>Never</td><td><code>type(x)</code></td></tr>
-        <tr><td><strong>Value</strong></td><td>The data it holds</td><td>Only if mutable</td><td><code>print(x)</code></td></tr>
-      </table></div>
+<pre><code class="language-python">age = 25
 
-      <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">Every object watches “ITV”: Identity · Type · Value.</p>
-        <p>The first two are fixed at birth. Only the <em>value</em> of a mutable object can change.</p>
+print(type(age))   # → &lt;class 'int'&gt;      what kind of thing
+print(id(age))     # → 140713...           where it lives (your number will differ)
+print(age)         # → 25                  what's inside</code></pre>
+
+      <h3>Same value or the same object? <code>==</code> vs <code>is</code></h3>
+      <div class="analogy">
+        <span class="emoji">👯</span>
+        <div>
+          <strong>Think of identical twins.</strong>
+          <p>They look exactly the same (<code>==</code> is True), but they're two different people (<code>is</code> is False).</p>
+        </div>
       </div>
-
-      <h3><code>is</code> vs <code>==</code></h3>
-      <div class="table-wrap"><table>
-        <tr><th>Operator</th><th>Asks</th><th>Under the hood</th></tr>
-        <tr><td><code>is</code></td><td>Same object? (identity)</td><td><code>id(a) == id(b)</code></td></tr>
-        <tr><td><code>==</code></td><td>Same value? (equality)</td><td><code>a.__eq__(b)</code></td></tr>
-      </table></div>
 
 <pre><code class="language-python">a = [1, 2, 3]
 b = [1, 2, 3]
 c = a
 
-a == b    # True  — same contents
-a is b    # False — two different list objects
-a is c    # True  — c is just another name for a
-
-x = None
-if x is None:      # ✅ the idiomatic None check
-    print("nothing here")</code></pre>
+print(a == b)   # → True    same contents
+print(a is b)   # → False   two separate lists that happen to match
+print(a is c)   # → True    c is just another name for the same list</code></pre>
 
       <div class="callout trick">
         <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic"><code>is</code> = “is it the <em>same box</em>?” · <code>==</code> = “same <em>contents</em>?”</p>
-        <p>Use <code>is</code> only for singletons: <code>None</code>, <code>True</code>, <code>False</code>.</p>
+        <p class="mnemonic"><code>==</code> asks “do they look the same?” · <code>is</code> asks “is it literally the same thing?”</p>
+        <p>In everyday code, use <code>==</code>. Use <code>is</code> only to check for <code>None</code>: <code>if result is None:</code></p>
       </div>
 
-      <h3>Mutable vs immutable</h3>
+      <h3>Can it change? Mutable vs immutable</h3>
+      <div class="analogy">
+        <span class="emoji">📝</span>
+        <div>
+          <strong>Whiteboard vs printed page.</strong>
+          <p>Some objects are like a <strong>whiteboard</strong> — you can erase and change them (<em>mutable</em>). Others are like a <strong>printed page</strong> — to “change” one, you have to print a new page (<em>immutable</em>).</p>
+        </div>
+      </div>
+
       <div class="split">
         <div class="mut">
-          <h4>🔓 Mutable — can change in place</h4>
-          <div class="pill-row"><span class="pill">list</span><span class="pill">dict</span><span class="pill">set</span><span class="pill">bytearray</span><span class="pill">most custom objects</span></div>
+          <h4>📝 Mutable (whiteboard)</h4>
+          <div class="pill-row"><span class="pill">list</span><span class="pill">dict</span><span class="pill">set</span></div>
         </div>
         <div class="imm">
-          <h4>🔒 Immutable — can never change</h4>
-          <div class="pill-row"><span class="pill">int</span><span class="pill">float</span><span class="pill">bool</span><span class="pill">str</span><span class="pill">tuple</span><span class="pill">frozenset</span><span class="pill">bytes</span><span class="pill">None</span></div>
+          <h4>📄 Immutable (printed page)</h4>
+          <div class="pill-row"><span class="pill">int</span><span class="pill">float</span><span class="pill">bool</span><span class="pill">str</span><span class="pill">tuple</span><span class="pill">None</span></div>
         </div>
       </div>
 
-      <div class="table-wrap"><table>
-        <tr><th>Consequence</th><th>Mutable</th><th>Immutable</th></tr>
-        <tr><td>Dict key / set member</td><td>❌ Unhashable</td><td>✅ Hashable</td></tr>
-        <tr><td>Shared between threads</td><td>⚠️ Needs locks</td><td>✅ Safe</td></tr>
-        <tr><td>As a default argument</td><td>⚠️ Shared-state trap</td><td>✅ Safe</td></tr>
-      </table></div>
+<pre><code class="language-python">nums = [1, 2, 3]
+nums.append(4)          # the list itself changes
+print(nums)             # → [1, 2, 3, 4]
+
+name = "sam"
+name.upper()            # makes a NEW string; the original is untouched
+print(name)             # → sam
+name = name.upper()     # point the name at the new string
+print(name)             # → SAM</code></pre>
 
       <div class="callout trick">
         <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">“<strong>L</strong>ists, <strong>D</strong>icts, <strong>S</strong>ets <strong>L</strong>ive <strong>D</strong>angerously <strong>S</strong>ometimes.”</p>
-        <p>The three everyday containers with curly/square brackets are mutable. Everything “simple” (numbers, strings, tuples) is frozen.</p>
+        <p class="mnemonic">“Containers you can add to are mutable. Simple values are not.”</p>
+        <p>If it has <code>.append()</code>, <code>.add()</code> or <code>[key] = …</code>, it's a whiteboard.</p>
       </div>
 
-      <h3>Mental model: sticky labels</h3>
-      <p>Variables are <strong>sticky labels</strong> on boxes in a warehouse. <code>x = 42</code> sticks the label <code>x</code> on the box containing <code>42</code>. <code>y = x</code> puts a second label on the <em>same</em> box — nothing is copied.</p>
-
-<pre><code class="language-python">a = [1, 2, 3]
-b = a            # second label on the same list
-b.append(4)
-print(a)         # [1, 2, 3, 4] — a sees the change
-print(a is b)    # True</code></pre>
-
-      <div class="callout warn">
-        <div class="callout-title">⚠️ Don't forget</div>
-        <ul>
-          <li><code>type(type)</code> → <code>&lt;class 'type'&gt;</code> — <code>type</code> is an instance of itself.</li>
-          <li><code>None</code> is a singleton — there is exactly one in the whole process.</li>
-          <li>Immutable ≠ constant: you can <em>rebind</em> the name, you just can't change the object.</li>
-          <li>CPython caches small ints <code>[-5, 256]</code>, so <code>a is b</code> may “work” for small numbers. It's an implementation detail — never rely on it.</li>
-          <li>A tuple holding a mutable is <strong>still unhashable</strong>: <code>{(1, [2]): "v"}</code> → <code>TypeError</code>.</li>
-        </ul>
-      </div>
+      <h3>Why it matters: dictionary keys</h3>
+      <p>A dictionary needs its keys to never change, otherwise it couldn't find them again. So only <strong>immutable</strong> things can be keys.</p>
+<pre><code class="language-python">cities = {(19.07, 72.87): "Mumbai"}    # ✅ a tuple can be a key
+cities = {[19.07, 72.87]: "Mumbai"}    # ❌ TypeError: unhashable type: 'list'</code></pre>
 
       <div class="predict">
         <div class="predict-head">🤔 Predict the output</div>
-<pre><code class="language-python">t = (1, [2, 3])
-print(type(type))
-print(t[1] is t[1])
-print(hash(t))</code></pre>
+<pre><code class="language-python">x = "hello"
+y = x
+x = x + "!"
+print(y)</code></pre>
         <details>
           <summary>Show answer</summary>
           <div class="answer">
-<pre>&lt;class 'type'&gt;
-True
-TypeError: unhashable type: 'list'</pre>
-            <p>A tuple is only hashable if <em>everything inside it</em> is hashable — the list inside poisons it.</p>
+<pre>hello</pre>
+            <p>Strings can't change. <code>x + "!"</code> builds a brand-new string and only <code>x</code> moves to it. <code>y</code> still points at the original <code>"hello"</code>.</p>
           </div>
         </details>
       </div>
+
+      <div class="callout good">
+        <div class="callout-title">✅ Remember</div>
+        <ul>
+          <li>Every value is an object with an id, a type and a value.</li>
+          <li><code>==</code> compares values; <code>is</code> checks it's the same object — use it only for <code>None</code>.</li>
+          <li>Lists, dicts and sets can change; numbers, strings and tuples can't.</li>
+        </ul>
+      </div>
+
+      <details class="deeper">
+        <summary>🔬 Go deeper <small>— interview details, optional</small></summary>
+        <div class="deeper-body">
+          <h4>Identity, type and value never “drift”</h4>
+          <div class="table-wrap"><table>
+            <tr><th>Property</th><th>Can it change?</th><th>Inspect with</th></tr>
+            <tr><td>Identity</td><td>Never</td><td><code>id(x)</code> (memory address in CPython)</td></tr>
+            <tr><td>Type</td><td>Never</td><td><code>type(x)</code></td></tr>
+            <tr><td>Value</td><td>Only if mutable</td><td><code>print(x)</code></td></tr>
+          </table></div>
+          <h4>Small integer cache</h4>
+          <p>CPython pre-creates the integers <code>-5</code> to <code>256</code>, so <code>a is b</code> can be <code>True</code> for small numbers and <code>False</code> for big ones. It's an implementation detail — another reason never to use <code>is</code> for numbers.</p>
+          <h4>“Hashable” is the real rule for dict keys</h4>
+          <p>Keys must be <em>hashable</em>: Python turns them into a number (<code>hash(x)</code>) to find them fast. Immutable built-ins are hashable. A tuple is hashable only if everything inside it is — <code>hash((1, [2]))</code> raises <code>TypeError</code> because of the list inside.</p>
+          <h4>Fun facts</h4>
+          <ul>
+            <li><code>type(type)</code> → <code>&lt;class 'type'&gt;</code>: <code>type</code> is an instance of itself.</li>
+            <li><code>None</code> is a singleton — there is exactly one in the whole program.</li>
+            <li>Immutable ≠ constant: you can point a name at a new object; you can't change the object.</li>
+          </ul>
+        </div>
+      </details>
     </section>
 
     <!-- ===================================================== M2 -->
-    <section class="module" id="m2" data-title="M2 · Variables &amp; Memory">
+    <section class="module" id="m2" data-title="M2 · Variables">
       <div class="module-head">
-        <div><span class="module-tag">MODULE 2</span><h2>Variables &amp; Memory</h2></div>
+        <div><span class="module-tag">MODULE 2</span><h2>Variables Are Name Tags</h2></div>
         <button class="learn-btn" type="button">Mark as learned</button>
       </div>
 
       <div class="callout core">
-        <div class="callout-title">🔑 Core idea</div>
-        <p>Variables are <strong>name bindings</strong> (labels), not containers. <code>=</code> <strong>never copies</strong> — it only moves a label. CPython frees an object when its <strong>reference count</strong> drops to zero.</p>
+        <div class="callout-title">💬 In plain English</div>
+        <p>A variable is a <strong>name tag</strong>, not a box. <code>x = 5</code> ties the tag <code>x</code> to the object <code>5</code>. Writing <code>y = x</code> ties a <em>second</em> tag to the <strong>same</strong> object — nothing gets copied.</p>
       </div>
 
-      <h3>Reference counting</h3>
-<pre><code class="language-python">import sys
+      <div class="analogy">
+        <span class="emoji">🔗</span>
+        <div>
+          <strong>Sharing a Google Doc.</strong>
+          <p><code>b = a</code> is like sending someone the <em>link</em>: you both edit the same document. To give them their own version, you have to make a <em>copy</em>.</p>
+        </div>
+      </div>
 
-x = "hello world"   # refcount = 1
-y = x               # refcount = 2  (two labels)
-del x               # refcount = 1  (del removes the NAME, not the object)
-y = None            # refcount = 0  → object is destroyed
+<pre><code class="language-python">shopping = ["milk", "eggs"]
+my_list = shopping              # same list, two names
+my_list.append("bread")
 
-# sys.getrefcount(obj) always reports +1:
-# passing obj into the function creates a temporary reference.</code></pre>
+print(shopping)                 # → ['milk', 'eggs', 'bread']   ← surprise!</code></pre>
 
-      <h3>What CPython caches (interning)</h3>
-      <div class="table-wrap"><table>
-        <tr><th>Cached</th><th>Range</th><th>Why</th></tr>
-        <tr><td>Small integers</td><td><code>-5</code> … <code>256</code></td><td>Extremely common values</td></tr>
-        <tr><td>Strings</td><td>Identifier-like (<code>"name"</code>, <code>"id"</code>)</td><td>Fast attribute / dict lookups</td></tr>
-        <tr><td>Singletons</td><td><code>None</code>, <code>True</code>, <code>False</code></td><td>Only one instance ever</td></tr>
-      </table></div>
+      <h3>Making a real copy</h3>
+<pre><code class="language-python">shopping = ["milk", "eggs"]
+my_list = shopping.copy()       # also works: list(shopping) or shopping[:]
+my_list.append("bread")
 
-      <h3>Shallow vs deep copy</h3>
-      <div class="table-wrap"><table>
-        <tr><th>Method</th><th>What it copies</th><th>Use for</th></tr>
-        <tr><td><code>b = a</code></td><td>Nothing — new label only</td><td>Intentionally shared state</td></tr>
-        <tr><td><code>copy.copy(a)</code> / <code>a.copy()</code> / <code>a[:]</code></td><td>The outer container only</td><td>Flat structures</td></tr>
-        <tr><td><code>copy.deepcopy(a)</code></td><td>Everything, recursively</td><td>Nested structures you must isolate</td></tr>
-      </table></div>
+print(shopping)                 # → ['milk', 'eggs']   unchanged ✅
+print(my_list)                  # → ['milk', 'eggs', 'bread']</code></pre>
 
-<pre class="diagram">SHALLOW COPY                              DEEP COPY
-original ──► {"users": ─┐                 original ──► {"users": ──► [A, B]}
-                        ├──► [A, B]
-shallow  ──► {"users": ─┘                 deep     ──► {"users": ──► [A', B']}
-(new dict, SAME inner list)               (new dict, NEW list, NEW inner dicts)</pre>
-
+      <h3>Copies of nested data: shallow vs deep</h3>
+      <p><code>.copy()</code> only copies the <em>outer</em> container. Anything nested inside is still shared.</p>
+      <div class="analogy">
+        <span class="emoji">📁</span>
+        <div>
+          <strong>Folders and papers.</strong>
+          <p>A <strong>shallow copy</strong> is a new folder holding the <em>same</em> papers. A <strong>deep copy</strong> is a new folder with <em>photocopies</em> of every paper.</p>
+        </div>
+      </div>
 <pre><code class="language-python">import copy
 
-original = {"users": [{"name": "Alice"}]}
-shallow  = copy.copy(original)
-deep     = copy.deepcopy(original)
+team = {"name": "Blue", "members": ["Asha", "Ravi"]}
 
-shallow["users"].append({"name": "Bob"})
-print(len(original["users"]))   # 2  ← original mutated through the shallow copy!
+shallow = team.copy()
+shallow["members"].append("Neha")
+print(team["members"])          # → ['Asha', 'Ravi', 'Neha']   inner list was shared!
 
-deep["users"].append({"name": "Charlie"})
-print(len(original["users"]))   # 2  ← deep copy is fully independent</code></pre>
+deep = copy.deepcopy(team)
+deep["members"].append("Zoe")
+print(team["members"])          # → ['Asha', 'Ravi', 'Neha']   fully independent ✅</code></pre>
 
-      <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick — the photocopier</div>
-        <p><code>=</code> is writing a second name on the <strong>same notebook</strong>. <code>copy()</code> photocopies <strong>only the cover page</strong> (the inner pages are still shared). <code>deepcopy()</code> photocopies <strong>every page</strong>.</p>
-      </div>
+      <h3>Passing things into functions</h3>
+      <p>A function receives a new name tag on <em>your</em> object. If it <strong>changes</strong> the object, you see the change. If it just <strong>points its tag somewhere else</strong>, you don't.</p>
+<pre><code class="language-python">def add_item(cart):
+    cart.append("pen")          # changes the shared list
 
-      <h3>Passing arguments: by object reference</h3>
-      <p>Python is neither pass-by-value nor pass-by-reference. The function gets <strong>a new label on the same object</strong>.</p>
-<pre><code class="language-python">def modify(lst):
-    lst.append(4)        # mutates the shared object → caller sees it ✅
+def reset(cart):
+    cart = []                   # only moves the function's own tag
 
-def rebind(lst):
-    lst = [9, 9, 9]      # moves the LOCAL label only → caller unaffected ❌
-
-a = [1, 2, 3]
-modify(a);  print(a)     # [1, 2, 3, 4]
-rebind(a);  print(a)     # [1, 2, 3, 4]  (unchanged)</code></pre>
+my_cart = ["book"]
+add_item(my_cart)
+print(my_cart)                  # → ['book', 'pen']
+reset(my_cart)
+print(my_cart)                  # → ['book', 'pen']   reset had no effect</code></pre>
 
       <div class="callout trick">
         <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">“Mutations travel, rebinds stay home.”</p>
-        <p>Changing the object inside a function is visible outside. Pointing the parameter at a new object is not.</p>
-      </div>
-
-      <div class="callout warn">
-        <div class="callout-title">⚠️ Don't forget</div>
-        <ul>
-          <li><code>+=</code> on a <strong>mutable</strong> mutates in place; on an <strong>immutable</strong> it creates a new object and rebinds.</li>
-          <li><code>del x</code> deletes the <strong>name</strong>. The object dies only when nothing else refers to it.</li>
-          <li>Use <code>copy.deepcopy()</code> for nested structures you need to isolate.</li>
-        </ul>
+        <p class="mnemonic">“Changes travel, reassignments stay home.”</p>
       </div>
 
       <div class="predict">
         <div class="predict-head">🤔 Predict the output</div>
 <pre><code class="language-python">a = [1, 2]
 b = a
-a += [3]          # list +=
-print(b)
-
-s = "hi"
-t = s
-s += "!"          # str +=
-print(t)</code></pre>
+a = a + [3]     # note: not .append()
+print(b)</code></pre>
         <details>
           <summary>Show answer</summary>
           <div class="answer">
-<pre>[1, 2, 3]
-hi</pre>
-            <p>List <code>+=</code> calls <code>__iadd__</code> and mutates the shared list. Strings are immutable, so <code>s += "!"</code> builds a new string and moves only the label <code>s</code>.</p>
+<pre>[1, 2]</pre>
+            <p><code>a + [3]</code> builds a new list and moves only the tag <code>a</code>. <code>b</code> still points at the old one. (With <code>a.append(3)</code> or <code>a += [3]</code>, both would see <code>[1, 2, 3]</code>.)</p>
           </div>
         </details>
       </div>
+
+      <div class="callout good">
+        <div class="callout-title">✅ Remember</div>
+        <ul>
+          <li><code>=</code> never copies — it attaches a name to an object.</li>
+          <li>Need an independent list or dict? <code>.copy()</code>. Nested data? <code>copy.deepcopy()</code>.</li>
+          <li>Functions can change your mutable objects, but can't reassign your variables.</li>
+        </ul>
+      </div>
+
+      <details class="deeper">
+        <summary>🔬 Go deeper <small>— memory and reference counting</small></summary>
+        <div class="deeper-body">
+          <h4>Reference counting</h4>
+          <p>CPython counts how many names and containers point at each object. When the count drops to zero, the object is freed immediately.</p>
+<pre><code class="language-python">import sys
+x = [1, 2, 3]
+sys.getrefcount(x)   # → 2   (x, plus a temporary reference for the call itself)
+y = x                # count goes up
+del y                # del removes the NAME; the object lives while others point at it</code></pre>
+          <h4>“Pass by object reference”</h4>
+          <p>The official name for the function behaviour above. Python is neither “pass by value” (it doesn't copy) nor “pass by reference” (the function can't reassign your variable).</p>
+          <h4><code>+=</code> behaves differently by type</h4>
+          <p>On a list, <code>a += [3]</code> changes the list in place (everyone sharing it sees it). On a string or tuple, <code>+=</code> builds a new object and moves the name.</p>
+          <h4>What CPython reuses</h4>
+          <p>Small ints (<code>-5</code>…<code>256</code>), short identifier-like strings, and <code>None</code>/<code>True</code>/<code>False</code> are created once and reused.</p>
+        </div>
+      </details>
     </section>
 
     <!-- ===================================================== M3 -->
-    <section class="module" id="m3" data-title="M3 · Data Structures">
+    <section class="module" id="m3" data-title="M3 · Lists, Dicts &amp; Sets">
       <div class="module-head">
-        <div><span class="module-tag">MODULE 3</span><h2>Data Structures Deep Dive</h2></div>
+        <div><span class="module-tag">MODULE 3</span><h2>Lists, Tuples, Dicts &amp; Sets</h2></div>
         <button class="learn-btn" type="button">Mark as learned</button>
       </div>
 
       <div class="callout core">
-        <div class="callout-title">🔑 Core idea</div>
-        <p>Python's four core containers are backed by specific C implementations — and that dictates their speed. Pick the structure by the <strong>operation you do most</strong>.</p>
+        <div class="callout-title">💬 In plain English</div>
+        <p>Python has four built-in containers. Each is good at one job — pick the one that matches what you need to <em>do</em> with the data.</p>
       </div>
 
-      <h3><code>list</code> — a dynamic array of pointers</h3>
       <div class="table-wrap"><table>
-        <tr><th>Operation</th><th>Time</th><th>Why</th></tr>
-        <tr><td><code>lst[i]</code></td><td>O(1)</td><td>Direct offset</td></tr>
-        <tr><td><code>lst.append(x)</code></td><td>O(1) amortized</td><td>Over-allocates spare capacity</td></tr>
-        <tr><td><code>lst.pop()</code></td><td>O(1)</td><td>Removes from the end</td></tr>
-        <tr><td><code>lst.insert(0, x)</code></td><td><strong>O(n)</strong></td><td>Shifts every element right</td></tr>
-        <tr><td><code>lst.pop(0)</code></td><td><strong>O(n)</strong></td><td>Shifts every element left — use <code>deque</code></td></tr>
-        <tr><td><code>x in lst</code></td><td>O(n)</td><td>Linear scan</td></tr>
+        <tr><th>Container</th><th>Real-life version</th><th>Good at</th><th>Looks like</th></tr>
+        <tr><td><strong>list</strong></td><td>📝 To-do list</td><td>Keeping things in order, adding more</td><td><code>["milk", "eggs"]</code></td></tr>
+        <tr><td><strong>tuple</strong></td><td>📍 GPS coordinates</td><td>A fixed group that won't change</td><td><code>(19.07, 72.87)</code></td></tr>
+        <tr><td><strong>dict</strong></td><td>📒 Phone book</td><td>Looking something up by a key</td><td><code>{"Asha": 9876}</code></td></tr>
+        <tr><td><strong>set</strong></td><td>🎟️ Guest list</td><td>Unique items, fast “is X here?”</td><td><code>{"Asha", "Ravi"}</code></td></tr>
       </table></div>
 
-      <h3><code>dict</code> — a compact hash table</h3>
-      <div class="table-wrap"><table>
-        <tr><th>Operation</th><th>Average</th><th>Notes</th></tr>
-        <tr><td><code>d[key]</code>, <code>d[key] = v</code></td><td>O(1)</td><td>Resizes at ~⅔ full</td></tr>
-        <tr><td><code>key in d</code></td><td>O(1)</td><td>Hash, then compare</td></tr>
-        <tr><td>Iteration order</td><td>—</td><td><strong>Insertion order</strong> — a language guarantee since 3.7</td></tr>
-      </table></div>
+<pre><code class="language-python">todo = ["email", "gym"]
+todo.append("groceries")              # list: ordered, grows
+print(todo[0])                        # → email
 
-      <h3><code>set</code> and <code>tuple</code></h3>
+point = (3, 4)
+x, y = point                          # tuple: fixed; unpack into names
+
+phone = {"Asha": 9876, "Ravi": 5432}
+print(phone["Asha"])                  # → 9876        dict: look up by key
+phone["Neha"] = 1111                  # add or update
+
+guests = {"Asha", "Ravi", "Asha"}
+print(guests)                         # → {'Asha', 'Ravi'}   set: duplicates vanish
+print("Ravi" in guests)               # → True</code></pre>
+
+      <h3>Speed, in plain words</h3>
       <ul>
-        <li><strong>set</strong> = hash table of keys only → O(1) membership. Operators: <code>a | b</code> union, <code>a &amp; b</code> intersection, <code>a - b</code> difference, <code>a ^ b</code> symmetric difference.</li>
-        <li><strong>tuple</strong> = fixed-size immutable array → smaller than a list, and hashable (if its contents are) so it can be a dict key.</li>
+        <li><strong>Dict and set lookups are instant</strong> — even with a million items, <code>key in d</code> takes the same time.</li>
+        <li><strong>Searching a list checks items one by one</strong> — <code>x in my_list</code> gets slower as the list grows.</li>
+        <li><strong>Adding/removing at the end of a list is fast</strong>; at the <em>front</em> it's slow (everything shifts).</li>
       </ul>
 
-<pre class="diagram">list : [ptr0|ptr1|ptr2|...|empty|empty]   ← over-allocated, room to grow
-tuple: [ptr0|ptr1|ptr2]                   ← exact size, no growth buffer
-dict : indices[sparse] → entries[dense, insertion order]
-set  : hash table of keys only (no values)</pre>
-
       <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick — choose by question</div>
+        <div class="callout-title">🧠 Memory trick — choose by the question you ask</div>
         <ul>
-          <li>“<strong>Is X in here?</strong>” (asked many times) → <code>set</code></li>
-          <li>“<strong>What's the value for X?</strong>” → <code>dict</code></li>
-          <li>“<strong>Add/remove at both ends?</strong>” (queue) → <code>deque</code></li>
-          <li>“<strong>Ordered, indexable, grows at the end?</strong>” → <code>list</code></li>
-          <li>“<strong>Fixed record / dict key?</strong>” → <code>tuple</code></li>
+          <li>“<strong>Is X in here?</strong>” → set</li>
+          <li>“<strong>What's the value for X?</strong>” → dict</li>
+          <li>“<strong>What's next, in order?</strong>” → list</li>
+          <li>“<strong>A fixed record?</strong>” → tuple</li>
         </ul>
       </div>
 
-      <h3>The <code>collections</code> trio</h3>
-<pre><code class="language-python">from collections import defaultdict, Counter, deque
+      <h3>Three handy helpers from <code>collections</code></h3>
+<pre><code class="language-python">from collections import Counter, defaultdict, deque
 
-# defaultdict — auto-creates missing keys
-d = defaultdict(list)
-d["users"].append("Alice")
-print(d["admins"])            # []  ← reading CREATED the "admins" key!
+# Counter — count things in one line
+votes = ["tea", "coffee", "tea", "tea"]
+print(Counter(votes).most_common(1))  # → [('tea', 3)]
 
-# Counter — frequency counting in one line
-words = ["the", "cat", "the", "dog", "the"]
-Counter(words).most_common(2) # [('the', 3), ('cat', 1)]
+# defaultdict — no "if key not in dict" boilerplate
+by_letter = defaultdict(list)
+for name in ["Asha", "Amit", "Ravi"]:
+    by_letter[name[0]].append(name)
+print(dict(by_letter))                # → {'A': ['Asha', 'Amit'], 'R': ['Ravi']}
 
-# deque — O(1) at both ends
-q = deque([1, 2, 3])
-q.appendleft(0)               # O(1)  (list.insert(0, x) is O(n))
-q.popleft()                   # O(1)  (list.pop(0) is O(n))</code></pre>
+# deque — a queue that's fast at BOTH ends
+line = deque(["Asha", "Ravi"])
+line.append("Neha")                   # join at the back
+print(line.popleft())                 # → Asha   served from the front</code></pre>
 
       <div class="callout warn">
-        <div class="callout-title">⚠️ Don't forget</div>
-        <ul>
-          <li>Defining <code>__eq__</code> without <code>__hash__</code> makes a class <strong>unhashable</strong>.</li>
-          <li>Insertion order ≠ sorted order.</li>
-          <li><strong>Never</strong> add/remove keys of a dict or set while iterating it → <code>RuntimeError</code>. Iterate over <code>list(d)</code> instead.</li>
-          <li><code>defaultdict</code> inserts on <em>read</em>. Use <code>d.get(key)</code> if you only want to peek.</li>
-          <li>Checking <code>in</code> repeatedly against a list? Convert it to a set once.</li>
-        </ul>
+        <div class="callout-title">⚠️ Common mistake: changing a dict while looping over it</div>
+<pre><code class="language-python">stock = {"apple": 0, "pear": 3}
+for item in stock:
+    if stock[item] == 0:
+        del stock[item]        # ❌ RuntimeError: dictionary changed size during iteration
+
+for item in list(stock):       # ✅ loop over a snapshot of the keys
+    if stock[item] == 0:
+        del stock[item]</code></pre>
       </div>
 
       <div class="predict">
         <div class="predict-head">🤔 Predict the output</div>
-<pre><code class="language-python">d = {"a": 1, "b": 2}
-for k in d:
-    if k == "a":
-        d["c"] = 3</code></pre>
+<pre><code class="language-python">emails = ["a@x.com", "b@x.com", "a@x.com"]
+print(len(set(emails)))</code></pre>
         <details>
           <summary>Show answer</summary>
           <div class="answer">
-<pre>RuntimeError: dictionary changed size during iteration</pre>
-            <p>Fix: <code>for k in list(d):</code> — iterate over a snapshot of the keys.</p>
+<pre>2</pre>
+            <p>Turning a list into a set is the quickest way to remove duplicates (but you lose the order).</p>
           </div>
         </details>
       </div>
+
+      <div class="callout good">
+        <div class="callout-title">✅ Remember</div>
+        <ul>
+          <li>list = ordered, tuple = fixed, dict = key → value, set = unique.</li>
+          <li>Checking membership a lot? Use a set or dict, not a list.</li>
+          <li>Don't add or delete keys while looping over a dict — loop over <code>list(d)</code>.</li>
+        </ul>
+      </div>
+
+      <details class="deeper">
+        <summary>🔬 Go deeper <small>— Big-O and internals</small></summary>
+        <div class="deeper-body">
+          <h4>list = dynamic array</h4>
+          <div class="table-wrap"><table>
+            <tr><th>Operation</th><th>Time</th></tr>
+            <tr><td><code>lst[i]</code>, <code>append</code>, <code>pop()</code></td><td>O(1)</td></tr>
+            <tr><td><code>insert(0, x)</code>, <code>pop(0)</code>, <code>x in lst</code></td><td>O(n)</td></tr>
+          </table></div>
+          <h4>dict / set = hash tables</h4>
+          <p>Average O(1) lookups and inserts; the table resizes when about ⅔ full. Dicts keep <strong>insertion order</strong> (guaranteed since Python 3.7) — not sorted order.</p>
+<pre class="diagram">list : [ptr0|ptr1|ptr2|...|spare|spare]   ← extra room to grow
+tuple: [ptr0|ptr1|ptr2]                   ← exact size
+dict : sparse index → dense entries (insertion order)</pre>
+          <h4>Gotchas</h4>
+          <ul>
+            <li><code>defaultdict</code> inserts a key just by <em>reading</em> it: <code>d["missing"]</code> creates it. Use <code>d.get(key)</code> to peek.</li>
+            <li>Set operators: <code>a | b</code> union, <code>a &amp; b</code> intersection, <code>a - b</code> difference.</li>
+            <li>A class that defines <code>__eq__</code> but not <code>__hash__</code> can't be put in a set (Phase 2, M8).</li>
+          </ul>
+        </div>
+      </details>
     </section>
 
     <!-- ===================================================== M4 -->
-    <section class="module" id="m4" data-title="M4 · Strings &amp; Unicode">
+    <section class="module" id="m4" data-title="M4 · Strings">
       <div class="module-head">
-        <div><span class="module-tag">MODULE 4</span><h2>Strings &amp; Unicode</h2></div>
+        <div><span class="module-tag">MODULE 4</span><h2>Strings, Text &amp; Bytes</h2></div>
         <button class="learn-btn" type="button">Mark as learned</button>
       </div>
 
       <div class="callout core">
-        <div class="callout-title">🔑 Core idea</div>
-        <p><code>str</code> = a sequence of Unicode <strong>characters</strong> (text). <code>bytes</code> = a sequence of raw <strong>bytes</strong> (what goes over the wire and onto disk). Decode at the boundary, work with <code>str</code> inside, encode at the boundary.</p>
+        <div class="callout-title">💬 In plain English</div>
+        <p>A <code>str</code> is <strong>text</strong> — characters you can read. Computers store and send text as <strong>bytes</strong> (raw numbers), using an encoding to translate between the two. <strong>UTF-8</strong> is the standard encoding almost everywhere.</p>
       </div>
 
-      <div class="flow">
-        <span class="step">bytes in<br><small class="muted">file · network</small></span>
-        <span class="arrow">→ <code>.decode("utf-8")</code> →</span>
-        <span class="step"><strong>str</strong><br><small class="muted">your program</small></span>
-        <span class="arrow">→ <code>.encode("utf-8")</code> →</span>
-        <span class="step">bytes out<br><small class="muted">file · network</small></span>
-      </div>
+<pre><code class="language-python">text = "café"
+data = text.encode("utf-8")      # text → bytes  (to save or send)
+print(data)                      # → b'caf\xc3\xa9'
+print(data.decode("utf-8"))      # → café        bytes → text  (after reading)
+
+print(len("café"))               # → 4   characters
+print(len(data))                 # → 5   bytes — é takes 2 bytes in UTF-8</code></pre>
 
       <div class="callout trick">
         <div class="callout-title">🧠 Memory trick — the Unicode sandwich</div>
-        <p class="mnemonic">Bread = bytes, filling = str.</p>
-        <p><strong>D</strong>ecode when data comes <strong>in</strong> (“De-in”), <strong>E</strong>ncode when it goes <strong>out</strong> (“En-out”). Never mix the two inside.</p>
+        <p class="mnemonic">Bytes on the outside, text in the middle.</p>
+        <p><strong>Decode</strong> when data comes <strong>in</strong> (file, network) → work with <code>str</code> → <strong>encode</strong> when it goes <strong>out</strong>.</p>
       </div>
 
-      <h3>UTF-8 is variable-width</h3>
-      <div class="table-wrap"><table>
-        <tr><th>Code point range</th><th>Bytes</th><th>Example</th></tr>
-        <tr><td>U+0000 – U+007F</td><td>1</td><td><code>A</code></td></tr>
-        <tr><td>U+0080 – U+07FF</td><td>2</td><td><code>é</code></td></tr>
-        <tr><td>U+0800 – U+FFFF</td><td>3</td><td><code>世</code></td></tr>
-        <tr><td>U+10000 – U+10FFFF</td><td>4</td><td><code>🐍</code></td></tr>
-      </table></div>
+      <h3>f-strings: the easy way to build text</h3>
+<pre><code class="language-python">name, score, price = "Asha", 0.92, 1499
 
-<pre><code class="language-python">len("🐍")                     # 1  → characters
-len("🐍".encode("utf-8"))     # 4  → bytes
-
-"café".encode("utf-8")        # b'caf\xc3\xa9'
-b"caf\xc3\xa9".decode("utf-8")  # 'café'
-
-"a" + b"b"                    # TypeError — str and bytes never mix implicitly</code></pre>
-
-      <p><strong>PEP 393 (internal storage):</strong> CPython stores each string using the smallest width that fits <em>all</em> its characters (1, 2 or 4 bytes per char). One emoji in a million-character ASCII string makes the whole string ~4× bigger in memory.</p>
-
-      <h3>Fast concatenation &amp; f-strings</h3>
-<pre><code class="language-python"># ❌ O(n²): each += builds a brand-new string
-result = ""
-for item in items:
-    result += str(item) + ", "
-
-# ✅ O(n): collect, then join once
-result = ", ".join(str(item) for item in items)
-
-# Always state the encoding when opening text files
-with open("data.csv", "r", encoding="utf-8") as f:
-    data = f.read()
-
-# f-string mini-language
-name, pi = "Alice", 3.14159
-f"{pi:.2f}"        # '3.14'
-f"{1000000:,}"     # '1,000,000'
-f"{name=}"         # "name='Alice'"   (3.8+ debug form)
-f"{name:>8}"       # '   Alice'       (right-align in 8 chars)</code></pre>
-
-      <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">“<code>+=</code> in a loop is a <em>re-write</em>; <code>join</code> is a <em>one-shot print</em>.”</p>
-      </div>
+print(f"Hi {name}!")              # → Hi Asha!
+print(f"Score: {score:.0%}")      # → Score: 92%
+print(f"Price: ₹{price:,}")       # → Price: ₹1,499
+print(f"{3.14159:.2f}")           # → 3.14
+print(f"{name=}")                 # → name='Asha'   handy for debugging</code></pre>
 
       <div class="callout warn">
-        <div class="callout-title">⚠️ Don't forget</div>
+        <div class="callout-title">⚠️ Common mistake: gluing text to a number</div>
+<pre><code class="language-python">age = 25
+print("Age: " + age)          # ❌ TypeError: can only concatenate str (not "int") to str
+print("Age: " + str(age))     # ✅
+print(f"Age: {age}")          # ✅ cleaner</code></pre>
+      </div>
+
+      <h3>Joining many pieces</h3>
+<pre><code class="language-python">words = ["Python", "is", "fun"]
+
+sentence = " ".join(words)       # ✅ fast, one step
+print(sentence)                  # → Python is fun
+
+# Avoid building big strings with += in a loop — each step makes a whole new string.</code></pre>
+
+      <h3>Reading files</h3>
+<pre><code class="language-python">with open("notes.txt", encoding="utf-8") as f:   # always say the encoding
+    content = f.read()</code></pre>
+      <p class="muted">Without <code>encoding="utf-8"</code>, Python uses your operating system's default — on Windows that can garble non-English text.</p>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">word = "naïve"
+print(len(word), len(word.encode("utf-8")))</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>5 6</pre>
+            <p>5 characters, but 6 bytes — the <code>ï</code> needs two bytes in UTF-8.</p>
+          </div>
+        </details>
+      </div>
+
+      <div class="callout good">
+        <div class="callout-title">✅ Remember</div>
         <ul>
-          <li><code>len(str)</code> counts characters; <code>len(bytes)</code> counts bytes — different for non-ASCII.</li>
-          <li>Always pass <code>encoding="utf-8"</code> to <code>open()</code> — the default depends on the OS (it bites on Windows).</li>
-          <li>Decode network input explicitly as UTF-8.</li>
+          <li><code>str</code> = text, <code>bytes</code> = raw data. Convert with <code>.encode()</code> / <code>.decode()</code>.</li>
+          <li>Use f-strings to mix text and values.</li>
+          <li>Use <code>"".join(...)</code> for many pieces, and <code>encoding="utf-8"</code> when opening files.</li>
         </ul>
       </div>
+
+      <details class="deeper">
+        <summary>🔬 Go deeper <small>— UTF-8 sizes and performance</small></summary>
+        <div class="deeper-body">
+          <h4>UTF-8 is variable-width</h4>
+          <div class="table-wrap"><table>
+            <tr><th>Characters</th><th>Bytes each</th><th>Example</th></tr>
+            <tr><td>Basic English (ASCII)</td><td>1</td><td><code>A</code></td></tr>
+            <tr><td>Accented Latin, Greek…</td><td>2</td><td><code>é</code></td></tr>
+            <tr><td>Most other scripts (हिन्दी, 世界)</td><td>3</td><td><code>世</code></td></tr>
+            <tr><td>Emoji and rare symbols</td><td>4</td><td><code>🐍</code></td></tr>
+          </table></div>
+          <h4>Why <code>+=</code> in a loop is slow</h4>
+          <p>Strings are immutable, so each <code>s += piece</code> copies everything so far into a new string. For <em>n</em> pieces that's roughly n² work. <code>"".join(pieces)</code> does it in one pass.</p>
+          <h4>How CPython stores strings (PEP 393)</h4>
+          <p>Each string uses 1, 2 or 4 bytes per character — the smallest size that fits its widest character. One emoji in a long English string makes the whole string use 4 bytes per character in memory.</p>
+          <h4>You can't mix the two</h4>
+          <p><code>"a" + b"b"</code> raises <code>TypeError</code>. Python never guesses an encoding for you.</p>
+        </div>
+      </details>
     </section>
 
     <!-- ===================================================== M5 -->
-    <section class="module" id="m5" data-title="M5 · Functions &amp; Scoping">
+    <section class="module" id="m5" data-title="M5 · Functions">
       <div class="module-head">
-        <div><span class="module-tag">MODULE 5</span><h2>Functions &amp; Scoping</h2></div>
+        <div><span class="module-tag">MODULE 5</span><h2>Functions &amp; Scope</h2></div>
         <button class="learn-btn" type="button">Mark as learned</button>
       </div>
 
       <div class="callout core">
-        <div class="callout-title">🔑 Core idea</div>
-        <p>Functions are <strong>first-class objects</strong> — you can assign, pass, return and store them. Names are resolved with the <strong>LEGB</strong> rule: Local → Enclosing → Global → Built-in.</p>
+        <div class="callout-title">💬 In plain English</div>
+        <p>A function is a <strong>reusable recipe</strong>. In Python a function is also an ordinary object, so you can store it in a variable or hand it to another function. <strong>Scope</strong> is the set of rules for where Python looks up a name.</p>
       </div>
 
-      <h3>The LEGB scope chain</h3>
+<pre><code class="language-python">def shout(text):
+    return text.upper() + "!"
+
+yell = shout                       # functions are objects — give it another name
+print(yell("hi"))                  # → HI!
+
+names = ["ravi", "Asha", "neha"]
+print(sorted(names, key=str.lower))   # → ['Asha', 'neha', 'ravi']   pass a function in</code></pre>
+
+      <h3>Where does Python look for a name? (LEGB)</h3>
+      <p>Python searches from the <strong>innermost</strong> box outwards and uses the first match.</p>
       <div class="legb">
-        <div class="b"><strong>B</strong> · Built-in — <code>len</code>, <code>print</code>, <code>range</code>
-          <div class="g"><strong>G</strong> · Global — module-level names
-            <div class="e"><strong>E</strong> · Enclosing — outer function's locals
-              <div class="l"><strong>L</strong> · Local — names assigned inside this function <em class="muted">(searched first)</em></div>
+        <div class="b"><strong>B</strong> · Built-in — <code>print</code>, <code>len</code>, <code>range</code>
+          <div class="g"><strong>G</strong> · Global — names at the top of your file
+            <div class="e"><strong>E</strong> · Enclosing — the outer function, if nested
+              <div class="l"><strong>L</strong> · Local — names created inside this function <em class="muted">(checked first)</em></div>
             </div>
           </div>
         </div>
@@ -472,129 +561,145 @@ f"{name:>8}"       # '   Alice'       (right-align in 8 chars)</code></pre>
 
       <div class="callout trick">
         <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">“Look Everywhere, Going Bigger.”</p>
-        <p>Python starts in the smallest box (Local) and walks outward until it finds the name — or raises <code>NameError</code>.</p>
+        <p class="mnemonic">“Look locally first, then go bigger.” — <strong>L</strong>ocal → <strong>E</strong>nclosing → <strong>G</strong>lobal → <strong>B</strong>uilt-in</p>
       </div>
 
+<pre><code class="language-python">greeting = "Hello"            # global
+
+def welcome(name):
+    message = f"{greeting}, {name}"   # message is local; greeting is found globally
+    return message
+
+print(welcome("Asha"))        # → Hello, Asha
+print(message)                # ❌ NameError — local names don't exist outside</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Common mistake: changing a global inside a function</div>
+<pre><code class="language-python">score = 0
+
+def add_point():
+    score += 1                 # ❌ UnboundLocalError
+
+# ✅ Best fix: pass the value in and return the new one
+def add_point(score):
+    return score + 1
+
+score = add_point(score)</code></pre>
+        <p>Assigning to a name <em>anywhere</em> in a function makes it local for the <em>whole</em> function, so Python never looks at the global <code>score</code>.</p>
+      </div>
+
+      <h3>Default arguments — and their famous trap</h3>
+<pre><code class="language-python">def greet(name, greeting="Hello"):     # greeting is optional
+    return f"{greeting}, {name}"
+
+greet("Asha")                # → Hello, Asha
+greet("Asha", "Hi")          # → Hi, Asha</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Never use a list (or dict) as a default</div>
+<pre><code class="language-python">def add_task(task, tasks=[]):        # ❌ the SAME list is reused every call
+    tasks.append(task)
+    return tasks
+
+add_task("email")                    # → ['email']
+add_task("gym")                      # → ['email', 'gym']   ← leaked from last call!
+
+def add_task(task, tasks=None):      # ✅ use None, create the list inside
+    if tasks is None:
+        tasks = []
+    tasks.append(task)
+    return tasks</code></pre>
+        <p>The default value is created <strong>once</strong>, when Python reads the <code>def</code> — not each time you call it.</p>
+      </div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Defaults are baked once.” Mutable default? Use <code>None</code>.</p>
+      </div>
+
+      <h3>Flexible arguments</h3>
+<pre><code class="language-python">def total(*prices):                 # *args → any number of positional values (a tuple)
+    return sum(prices)
+total(10, 20, 30)                   # → 60
+
+def profile(**info):                # **kwargs → any number of named values (a dict)
+    return info
+profile(name="Asha", city="Pune")   # → {'name': 'Asha', 'city': 'Pune'}
+
+def connect(host, *, timeout=30):   # everything after * must be passed by name
+    ...
+connect("db", timeout=5)            # ✅
+connect("db", 5)                    # ❌ TypeError</code></pre>
+
+      <h3>Closures: functions that remember</h3>
+<pre><code class="language-python">def make_multiplier(n):
+    def multiply(x):
+        return x * n        # n is remembered from the outer function
+    return multiply
+
+double = make_multiplier(2)
+triple = make_multiplier(3)
+print(double(5), triple(5))  # → 10 15</code></pre>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
 <pre><code class="language-python">x = "global"
 
-def outer():
-    x = "enclosing"
-    def inner():
-        x = "local"
-        print(x)     # local  — L wins
-    inner()
+def show():
+    x = "local"
+    print(x)
 
-outer()
-print(len)           # &lt;built-in function len&gt; — found in B</code></pre>
+show()
+print(x)</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>local
+global</pre>
+            <p>The <code>x</code> inside <code>show</code> is a separate local name. The global <code>x</code> is untouched.</p>
+          </div>
+        </details>
+      </div>
 
-      <h3><code>global</code> vs <code>nonlocal</code></h3>
-      <div class="table-wrap"><table>
-        <tr><th>Keyword</th><th>Rebinds a name in…</th><th>Typical use</th></tr>
-        <tr><td><code>global</code></td><td>The module scope</td><td>Rare — module-level config</td></tr>
-        <tr><td><code>nonlocal</code></td><td>The nearest enclosing function</td><td>Closures: counters, accumulators</td></tr>
-        <tr><td><em>(neither)</em></td><td>Creates a new local</td><td>Default behaviour</td></tr>
-      </table></div>
+      <div class="callout good">
+        <div class="callout-title">✅ Remember</div>
+        <ul>
+          <li>Functions are objects — you can pass them around (<code>key=</code>, callbacks).</li>
+          <li>Names are looked up Local → Enclosing → Global → Built-in.</li>
+          <li>Prefer returning values over changing globals.</li>
+          <li>Never use <code>[]</code> or <code>{}</code> as a default — use <code>None</code>.</li>
+        </ul>
+      </div>
 
+      <details class="deeper">
+        <summary>🔬 Go deeper <small>— nonlocal, late binding, argument rules</small></summary>
+        <div class="deeper-body">
+          <h4><code>global</code> and <code>nonlocal</code></h4>
 <pre><code class="language-python">def make_counter():
     count = 0
     def increment():
-        nonlocal count      # without this → UnboundLocalError
+        nonlocal count      # rebind the enclosing function's variable
         count += 1
         return count
     return increment
 
 c = make_counter()
-c()   # 1
-c()   # 2   ← count survives between calls: that's a closure</code></pre>
+c(); c()                    # → 1, then 2</code></pre>
+          <p><code>global name</code> does the same for a module-level variable. Both are rarely needed — returning values is usually clearer.</p>
+          <h4>Late binding in closures</h4>
+<pre><code class="language-python">funcs = [lambda: i for i in range(3)]
+[f() for f in funcs]        # → [2, 2, 2]   all read i when CALLED
 
-      <h3>The <code>UnboundLocalError</code> trap</h3>
-<pre><code class="language-python">x = 10
-def f():
-    print(x)    # UnboundLocalError!
-    x = 20      # this assignment makes x local for the WHOLE function</code></pre>
-
-      <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">“Assign anywhere → local everywhere.”</p>
-        <p>Python decides scope at compile time by scanning the whole function body.</p>
-      </div>
-
-      <h3>Default arguments are evaluated once</h3>
-<pre><code class="language-python">def bad(items=[]):          # ONE list, created at def time
-    items.append(1)
-    return items
-
-bad()   # [1]
-bad()   # [1, 1]   ← same list reused!
-
-def good(items=None):       # ✅ None sentinel
-    if items is None:
-        items = []
-    items.append(1)
-    return items</code></pre>
-
-      <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">“Defaults are baked once, not per call.”</p>
-        <p>Same trap for timestamps: <code>def log(ts=datetime.now())</code> freezes the time of definition.</p>
-      </div>
-
-      <h3>Closures &amp; late binding</h3>
-      <p>Closures capture <strong>variables</strong>, not <strong>values</strong>. The value is looked up when the inner function <em>runs</em>.</p>
-<pre><code class="language-python">funcs = [lambda: i for i in range(5)]
-[f() for f in funcs]        # [4, 4, 4, 4, 4]  ← all see the final i
-
-funcs = [lambda i=i: i for i in range(5)]
-[f() for f in funcs]        # [0, 1, 2, 3, 4]  ← default arg freezes the value</code></pre>
-
-      <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">“Closures remember the <em>name</em>, not the <em>number</em> — freeze it with <code>i=i</code>.”</p>
-      </div>
-
-      <h3>Parameter order</h3>
-<pre><code class="language-python">def f(pos_only, /, normal, *args, kw_only, **kwargs): ...
-
-def connect(host, port, *, timeout=30, retries=3):
-    ...
-
-connect("db", 5432, timeout=10)   # ✅
-connect("db", 5432, 10)           # ❌ TypeError — timeout is keyword-only</code></pre>
-
-      <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">“Slash shields the left, star stars the right.”</p>
-        <p>Everything <strong>before <code>/</code></strong> is positional-only. Everything <strong>after <code>*</code></strong> must be passed by keyword.</p>
-      </div>
-
-      <div class="callout warn">
-        <div class="callout-title">⚠️ Don't forget</div>
-        <ul>
-          <li>Functions are objects with attributes: <code>__name__</code>, <code>__doc__</code>, <code>__defaults__</code>, <code>__closure__</code>, <code>__code__</code>.</li>
-          <li>A <code>lambda</code> is a single expression — no statements, no assignments.</li>
-        </ul>
-      </div>
-
-      <div class="predict">
-        <div class="predict-head">🤔 Predict the output</div>
-<pre><code class="language-python">def append_to(x, bucket=[]):
-    bucket.append(x)
-    return bucket
-
-print(append_to(1))
-print(append_to(2))
-print(append_to.__defaults__)</code></pre>
-        <details>
-          <summary>Show answer</summary>
-          <div class="answer">
-<pre>[1]
-[1, 2]
-([1, 2],)</pre>
-            <p>You can literally see the shared list living on the function object in <code>__defaults__</code>.</p>
-          </div>
-        </details>
-      </div>
+funcs = [lambda i=i: i for i in range(3)]
+[f() for f in funcs]        # → [0, 1, 2]   default arg freezes each value</code></pre>
+          <p>Closures remember the <em>variable</em>, not the value it had at the time.</p>
+          <h4>Full parameter order</h4>
+<pre><code class="language-python">def f(pos_only, /, normal, *args, kw_only, **kwargs): ...</code></pre>
+          <p>Before <code>/</code>: positional only. After <code>*</code>: keyword only.</p>
+          <h4>Functions carry metadata</h4>
+          <p><code>f.__name__</code>, <code>f.__doc__</code>, <code>f.__defaults__</code> (you can literally see the shared default list there), <code>f.__closure__</code>.</p>
+        </div>
+      </details>
     </section>
 
     <!-- ===================================================== REVIEW -->
@@ -602,39 +707,34 @@ print(append_to.__defaults__)</code></pre>
       <h2>⚡ Quick-fire flashcards</h2>
       <p class="muted">Answer out loud, then tap the card to check yourself.</p>
       <div class="flashcards">
-        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Is Python pass-by-reference?</div><div class="flashcard-face flashcard-back">No — pass-by-object-reference. Mutations are visible to the caller; rebinding the parameter is not.</div></div></button>
-        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>is</code> vs <code>==</code>?</div><div class="flashcard-face flashcard-back"><code>is</code> checks identity (same <code>id()</code>); <code>==</code> checks equality via <code>__eq__</code>. Use <code>is</code> only for <code>None</code>/<code>True</code>/<code>False</code>.</div></div></button>
-        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Are dicts ordered?</div><div class="flashcard-face flashcard-back">Yes — insertion-ordered since 3.7 (a language guarantee). Not sorted.</div></div></button>
-        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Why is <code>+=</code> on strings in a loop bad?</div><div class="flashcard-face flashcard-back">Each step builds a new string → O(n²). Collect parts and use <code>"".join(parts)</code> → O(n).</div></div></button>
-        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What's a closure?</div><div class="flashcard-face flashcard-back">A function that captures variables from an enclosing scope. Late binding — it captures the variable, not its value.</div></div></button>
-        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Mutable default argument — what goes wrong?</div><div class="flashcard-face flashcard-back">The default is evaluated once at <code>def</code> time and shared across calls. Fix: <code>None</code> sentinel.</div></div></button>
-        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>list</code> vs <code>deque</code> for a queue?</div><div class="flashcard-face flashcard-back"><code>list.pop(0)</code> is O(n). <code>deque.popleft()</code> is O(1). Use <code>deque</code>.</div></div></button>
-        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Can a list be a dict key?</div><div class="flashcard-face flashcard-back">No — mutable means unhashable. Convert it to a tuple.</div></div></button>
-        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What does <code>del x</code> do?</div><div class="flashcard-face flashcard-back">Removes the name binding. The object is freed only when its refcount hits 0.</div></div></button>
-        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>defaultdict</code> side effect?</div><div class="flashcard-face flashcard-back">Reading a missing key inserts it. Use <code>.get()</code> if you only want to look.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>==</code> vs <code>is</code>?</div><div class="flashcard-face flashcard-back"><code>==</code>: same value? <code>is</code>: the very same object? Use <code>is</code> only for <code>None</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Which types can change (mutable)?</div><div class="flashcard-face flashcard-back">list, dict, set. Numbers, strings and tuples can't.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What does <code>b = a</code> do with a list?</div><div class="flashcard-face flashcard-back">Gives the same list a second name. Changes through <code>b</code> show up in <code>a</code>. Use <code>a.copy()</code> for a separate list.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Shallow vs deep copy?</div><div class="flashcard-face flashcard-back">Shallow copies the outer container; nested items are still shared. <code>copy.deepcopy()</code> copies everything.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Can a list be a dict key?</div><div class="flashcard-face flashcard-back">No — it can change. Use a tuple.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Fastest way to check “is X in here?”</div><div class="flashcard-face flashcard-back">A set (or dict). A list checks items one by one.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front"><code>str</code> vs <code>bytes</code>?</div><div class="flashcard-face flashcard-back">Text vs raw data. <code>.encode()</code> text → bytes, <code>.decode()</code> bytes → text.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What's LEGB?</div><div class="flashcard-face flashcard-back">The order Python looks up names: Local → Enclosing → Global → Built-in.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Why not <code>def f(items=[])</code>?</div><div class="flashcard-face flashcard-back">The default list is created once and shared by every call. Use <code>None</code> and create it inside.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What's a closure?</div><div class="flashcard-face flashcard-back">An inner function that remembers variables from the function that created it.</div></div></button>
       </div>
     </section>
 
     <section class="spy" id="gotchas">
-      <h2>⚠️ Gotchas checklist</h2>
-      <p class="muted">Skim this the night before an interview.</p>
+      <h2>⚠️ Common mistakes</h2>
+      <p class="muted">The traps that catch almost everyone at least once.</p>
       <ol class="gotchas">
-        <li><code>is</code> for value comparison → wrong. Only for <code>None</code>, <code>True</code>, <code>False</code>.</li>
-        <li>Integer cache <code>[-5, 256]</code> is CPython-specific — never rely on it.</li>
-        <li><code>def f(x=[])</code> → shared across calls. Use a <code>None</code> sentinel.</li>
-        <li><code>+=</code> on a list mutates in place; on a tuple/str it creates a new object.</li>
-        <li>Shallow copy shares inner objects → <code>deepcopy</code> for nested data.</li>
-        <li><code>del</code> deletes the name, not the object.</li>
-        <li>Pass-by-object-reference ≠ pass-by-reference — the rebind test proves it.</li>
-        <li><code>list.insert(0)</code> / <code>list.pop(0)</code> are O(n) → use <code>deque</code>.</li>
-        <li>Defining <code>__eq__</code> without <code>__hash__</code> → unhashable class.</li>
-        <li>Mutating a dict/set while iterating it → <code>RuntimeError</code>.</li>
-        <li><code>defaultdict</code> inserts on read — silent memory growth.</li>
-        <li><code>UnboundLocalError</code>: assignment anywhere makes a name local everywhere in that function.</li>
-        <li>Late-binding closures → fix with <code>lambda i=i: i</code>.</li>
-        <li>String <code>+=</code> in a loop → O(n²); use <code>join()</code>.</li>
-        <li><code>len(str)</code> = characters, <code>len(bytes)</code> = bytes.</li>
-        <li><strong>The tuple <code>+=</code> puzzle:</strong> <code>t = ([1, 2],); t[0] += [3, 4]</code> raises <code>TypeError</code> — <em>but the list is mutated anyway</em>. Step 1 (<code>list.__iadd__</code>) succeeds; step 2 (assigning back into the tuple) fails.</li>
+        <li>Using <code>is</code> to compare values — use <code>==</code> (and <code>is</code> only for <code>None</code>).</li>
+        <li>Thinking <code>b = a</code> copies a list — it doesn't; use <code>.copy()</code>.</li>
+        <li>Using <code>.copy()</code> on nested data and expecting the inner lists to be separate — use <code>deepcopy</code>.</li>
+        <li>Using a list as a dict key — use a tuple.</li>
+        <li>Deleting dict keys while looping over the dict — loop over <code>list(d)</code>.</li>
+        <li>Checking <code>x in big_list</code> over and over — convert to a set once.</li>
+        <li><code>"Age: " + 25</code> — use an f-string.</li>
+        <li>Building long strings with <code>+=</code> in a loop — use <code>"".join()</code>.</li>
+        <li>Opening files without <code>encoding="utf-8"</code>.</li>
+        <li>Modifying a global inside a function → <code>UnboundLocalError</code>. Return a value instead.</li>
+        <li><code>def f(items=[])</code> — the default is shared between calls. Use <code>None</code>.</li>
       </ol>
     </section>
 
