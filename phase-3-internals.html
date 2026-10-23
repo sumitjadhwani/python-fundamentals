@@ -40,7 +40,7 @@
 
     <ul class="roadmap">
       <li><a href="#m11"><span class="num">M11</span> Compilation &amp; Bytecode</a></li>
-      <li><a href="#m12"><span class="num">M12</span> Memory Management</a></li>
+      <li><a href="#m12"><span class="num">M12</span> Memory &amp; Cleanup</a></li>
       <li><a href="#m13"><span class="num">M13</span> The GIL</a></li>
     </ul>
 
@@ -153,51 +153,165 @@ print(3600 in f.__code__.co_consts)</code></pre>
     <!-- ===================================================== M12 -->
     <section class="module" id="m12" data-title="M12 · Memory Management">
       <div class="module-head">
-        <div><span class="module-tag">MODULE 12</span><h2>Memory Management</h2></div>
+        <div><span class="module-tag">MODULE 12</span><h2>Memory Management: How Python Cleans Up</h2></div>
         <button class="learn-btn" type="button">Mark as learned</button>
       </div>
 
       <div class="callout core">
-        <div class="callout-title">🔑 Core idea</div>
-        <p>CPython frees memory mainly with <strong>reference counting</strong> — deterministic and immediate. A separate <strong>cyclic garbage collector</strong> cleans up reference cycles that refcounting alone can never free.</p>
+        <div class="callout-title">💬 In plain English</div>
+        <p>In Python you never free memory yourself. Python keeps a <strong>count of how many things are using each object</strong>. The moment nothing uses an object any more, Python throws it away. A backup cleaner, the <strong>garbage collector</strong>, handles one tricky case: objects that only point at each other.</p>
       </div>
+
+      <div class="analogy">
+        <span class="emoji">🎈</span>
+        <div>
+          <strong>Balloons on strings.</strong>
+          <p>Every object is a balloon. Every variable, list slot or dict entry that refers to it is a <strong>string</strong> someone is holding. While at least one string is held, the balloon stays. When the <strong>last string is let go</strong>, the balloon floats away — the memory is freed.</p>
+        </div>
+      </div>
+
+      <h3>1. Reference counting: the main cleaner</h3>
+      <p>The number of strings on a balloon is its <strong>reference count</strong>. To <em>see</em> the moment an object is freed, this demo uses <code>__del__</code>, a method Python calls just before throwing an object away:</p>
+
+<pre><code class="language-python">class Balloon:
+    def __init__(self, name):
+        self.name = name
+    def __del__(self):                 # demo only: shows the moment it's freed
+        print(f"{self.name} popped")
+
+a = Balloon("red")     # 1 string  (a)
+b = a                  # 2 strings (a, b)
+del a                  # 1 string left — nothing happens
+print("still here")    # → still here
+del b                  # 0 strings → → red popped</code></pre>
 
       <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick — bouncer &amp; security sweep</div>
-        <p><strong>Refcounting is the bouncer at the door</strong>: the instant the last reference leaves, the object is out. <strong>The GC is a periodic security sweep</strong> that finds groups of objects only holding on to each other and evicts them together.</p>
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“<code>del</code> lets go of a string — it doesn't pop the balloon.”</p>
+        <p>The object is freed only when the <em>last</em> reference is gone.</p>
       </div>
 
-      <h3>Reference counting</h3>
-<pre><code class="language-python">import sys
+      <h3>What counts as a string?</h3>
+      <p>Not just variables. Anything that holds on to an object keeps it alive:</p>
+<pre><code class="language-python">blue = Balloon("blue")
+party = [blue]           # the list holds a string too
+del blue
+print("list still holds it")   # → list still holds it
+party.clear()                  # → blue popped
 
-x = [1, 2, 3]
-sys.getrefcount(x)   # 2 → x, plus the temporary reference for the call itself
+def make():
+    tmp = Balloon("green")     # a local variable is a string…
+    print("inside")
+make()                         # → inside
+                               # → green popped   …let go when the function returns</code></pre>
+      <p>That's why most memory in Python cleans itself up without you thinking about it: local variables vanish when functions return, and temporary objects vanish as soon as you're done with them.</p>
 
-y = x                # 3
-del y                # 2
-del x                # 0 → freed immediately (deterministic!)</code></pre>
-
-      <h3>Reference cycles</h3>
+      <h3>2. The one problem: objects holding each other</h3>
+      <div class="analogy">
+        <span class="emoji">🪢</span>
+        <div>
+          <strong>Two balloons tied to each other.</strong>
+          <p>Nobody is holding either balloon — but each one is tied to the other, so each still has one string. Counting strings alone, they'd stay forever. This is called a <strong>reference cycle</strong>.</p>
+        </div>
+      </div>
 <pre><code class="language-python">import gc
 
-a = []
-b = []
-a.append(b)          # a → b
-b.append(a)          # b → a   ← cycle: refcounts never reach 0
-del a, b             # unreachable, but not freed yet...
+x = Balloon("A")
+y = Balloon("B")
+x.friend = y           # A holds B
+y.friend = x           # B holds A   ← a cycle
+del x, y               # we let go — but nothing pops!
+print("nothing popped yet")   # → nothing popped yet
 
-gc.collect()         # 2 → the cycle collector found and freed both lists</code></pre>
+gc.collect()           # → A popped
+                       # → B popped   the garbage collector found the cycle</code></pre>
 
-      <h3>Generations</h3>
-      <p>Most objects die young, so the GC checks new objects often and old ones rarely.</p>
-      <div class="table-wrap"><table>
-        <tr><th>Python version</th><th>Layout</th><th><code>gc.get_threshold()</code></th></tr>
-        <tr><td>≤ 3.13 (classic)</td><td>3 generations: gen 0 (new) → gen 1 → gen 2 (long-lived)</td><td><code>(700, 10, 10)</code></td></tr>
-        <tr><td>3.14+</td><td><strong>Incremental</strong> GC: a young and an old generation, scanned in small steps to shorten pauses</td><td><code>(2000, 10, 0)</code></td></tr>
-      </table></div>
-      <p class="muted">Classic rule: gen 0 runs when allocations − deallocations exceed 700; gen 1 every 10 gen-0 runs; gen 2 every 10 gen-1 runs. Interview answers usually quote this model.</p>
+      <h3>3. The garbage collector: the backup cleaner</h3>
+      <p>The garbage collector (<code>gc</code>) wakes up every so often, looks for groups of objects that only point at each other and that nothing else can reach, and frees them. It runs <strong>automatically</strong> — you almost never call <code>gc.collect()</code> yourself.</p>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick — bouncer and cleaning crew</div>
+        <p><strong>Reference counting is the bouncer</strong>: the instant the last guest stops holding an object, it's out — immediately. <strong>The garbage collector is the cleaning crew</strong> that sweeps through now and then to clear the tangled leftovers the bouncer can't see.</p>
+      </div>
+      <p>To keep the sweeps cheap, it uses a simple observation: <strong>most objects die young</strong>. So it checks new objects often and long-lived survivors rarely. These age groups are called <strong>generations</strong>.</p>
 
-      <h3>Memory allocator layers</h3>
+      <h3>4. Weak references: looking without holding</h3>
+      <p>Sometimes you want to keep track of an object <em>without</em> keeping it alive — for example, a cache. A <strong>weak reference</strong> points at a balloon without holding its string.</p>
+<pre><code class="language-python">import weakref
+
+big = Balloon("gold")
+ref = weakref.ref(big)   # look, but don't hold
+print(ref().name)        # → gold
+del big                  # → gold popped   the weak ref didn't keep it alive
+print(ref())             # → None</code></pre>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Common mistake 1: using <code>__del__</code> for cleanup</div>
+        <p><code>__del__</code> is fine for a demo, but in real code you can't be sure <em>when</em> it runs (cycles delay it, and it may not run at all when the program exits). For files, connections and locks, use <code>with</code> (Phase 2, Module 9) — cleanup then happens at a known moment.</p>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ Common mistake 2: “leaks” from things you forgot you're holding</div>
+        <p>Python can't free an object while something still references it. The classic leak is a cache that only ever grows:</p>
+<pre><code class="language-python">_cache = {}
+
+def load_user(user_id):
+    if user_id not in _cache:
+        _cache[user_id] = fetch_from_db(user_id)   # ❌ every user stays in memory forever
+    return _cache[user_id]
+
+from functools import lru_cache
+
+@lru_cache(maxsize=1000)                           # ✅ keeps only the 1000 most recently used
+def load_user(user_id):
+    return fetch_from_db(user_id)</code></pre>
+      </div>
+
+      <div class="predict">
+        <div class="predict-head">🤔 Predict the output</div>
+<pre><code class="language-python">nums = [1, 2, 3]
+backup = nums
+del nums
+print(backup)</code></pre>
+        <details>
+          <summary>Show answer</summary>
+          <div class="answer">
+<pre>[1, 2, 3]</pre>
+            <p><code>del nums</code> only removed one name. <code>backup</code> is still holding the list, so it stays alive.</p>
+          </div>
+        </details>
+      </div>
+
+      <div class="callout good">
+        <div class="callout-title">✅ Remember</div>
+        <ul>
+          <li>Python counts references; when the count hits zero, the object is freed <strong>immediately</strong>.</li>
+          <li>Objects that only point at each other (cycles) are cleaned up later by the garbage collector.</li>
+          <li><code>del</code> removes a name, not the object.</li>
+          <li>Use <code>with</code> for cleanup, and watch out for caches and lists that grow forever.</li>
+        </ul>
+      </div>
+
+      <details class="deeper">
+        <summary>🔬 Go deeper <small>— getrefcount, generations, allocators, leak hunting</small></summary>
+        <div class="deeper-body">
+          <h4>Seeing the count</h4>
+<pre><code class="language-python">import sys
+x = [1, 2, 3]
+sys.getrefcount(x)   # → 2   x, plus a temporary reference for the call itself</code></pre>
+          <p>The count always reads one higher than you'd expect, because passing <code>x</code> into <code>getrefcount</code> creates a reference.</p>
+
+          <h4>Generations in numbers</h4>
+          <div class="table-wrap"><table>
+            <tr><th>Python version</th><th>Layout</th><th><code>gc.get_threshold()</code></th></tr>
+            <tr><td>≤ 3.13 (classic)</td><td>3 generations: gen 0 (new) → gen 1 → gen 2 (long-lived)</td><td><code>(700, 10, 10)</code></td></tr>
+            <tr><td>3.14+</td><td><strong>Incremental</strong>: a young and an old generation, scanned in small steps so pauses are shorter</td><td><code>(2000, 10, 0)</code></td></tr>
+          </table></div>
+          <p class="muted">Classic rule: gen 0 is checked when allocations minus deallocations exceed 700; gen 1 every 10 gen-0 runs; gen 2 every 10 gen-1 runs. Interview answers usually quote this model.</p>
+
+          <h4><code>gc.disable()</code></h4>
+          <p>Turns off only the cycle collector — reference counting keeps working. Some apps disable it during hot paths and call <code>gc.collect()</code> at quiet moments.</p>
+
+          <h4>How memory is actually handed out</h4>
 <pre class="diagram">┌───────────────────────────────────────────────┐
 │ Layer 3: object-specific caches (ints, lists…)│
 ├───────────────────────────────────────────────┤
@@ -206,62 +320,21 @@ gc.collect()         # 2 → the cycle collector found and freed both lists</cod
 ├───────────────────────────────────────────────┤
 │ Layer 1: the OS malloc — anything bigger        │
 └───────────────────────────────────────────────┘</pre>
+          <p>Freed small objects go back to Python's own pools for reuse, so a process's memory use may not shrink right away even after objects die.</p>
 
-      <h3>Weak references</h3>
-<pre><code class="language-python">import weakref
-
-class Thing: pass
-
-obj = Thing()
-ref = weakref.ref(obj)    # does NOT bump the refcount
-ref()                     # &lt;Thing object at ...&gt;
-del obj
-ref()                     # None — the object is gone
-
-cache = weakref.WeakValueDictionary()   # entries vanish when values die</code></pre>
-
-      <h3>Finding leaks with <code>tracemalloc</code></h3>
+          <h4>Finding leaks with <code>tracemalloc</code></h4>
 <pre><code class="language-python">import tracemalloc
 
 tracemalloc.start()
 run_suspicious_code()
 snapshot = tracemalloc.take_snapshot()
 for stat in snapshot.statistics("lineno")[:5]:
-    print(stat)           # top 5 lines by memory allocated</code></pre>
+    print(stat)          # the 5 source lines that allocated the most memory</code></pre>
 
-      <div class="callout warn">
-        <div class="callout-title">⚠️ Don't forget</div>
-        <ul>
-          <li><strong><code>__del__</code> is unreliable</strong> — timing is unpredictable and it can resurrect objects. Use context managers for cleanup.</li>
-          <li><code>gc.disable()</code> stops only the <em>cycle</em> collector. Refcounting keeps working.</li>
-          <li>Common real leaks: unbounded global caches, closures capturing big objects, C extensions.</li>
-        </ul>
-      </div>
-
-      <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">“<code>gc.disable()</code> sends the sweepers home — the bouncer stays.”</p>
-      </div>
-
-      <div class="predict">
-        <div class="predict-head">🤔 Predict the output</div>
-<pre><code class="language-python">import gc, weakref
-
-class Node: pass
-
-n = Node()
-r = weakref.ref(n)
-gc.disable()
-del n
-print(r())</code></pre>
-        <details>
-          <summary>Show answer</summary>
-          <div class="answer">
-<pre>None</pre>
-            <p>No cycle here, so refcounting frees the object the moment <code>n</code> is deleted — disabling the GC doesn't matter.</p>
-          </div>
-        </details>
-      </div>
+          <h4>More on weak references</h4>
+          <p><code>weakref.WeakValueDictionary</code> is a dict whose entries disappear automatically when their values are freed — a cache that never keeps objects alive by itself.</p>
+        </div>
+      </details>
     </section>
 
     <!-- ===================================================== M13 -->
