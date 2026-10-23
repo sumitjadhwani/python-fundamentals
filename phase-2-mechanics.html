@@ -202,43 +202,64 @@ list(islice(fibonacci(), 8))    # → [0, 1, 1, 2, 3, 5, 8, 13]</code></pre>
         </div>
       </div>
 
-      <h3>Build one in three steps</h3>
-      <p><strong>Step 1</strong> — a function that takes a function and returns a new, wrapped one:</p>
-<pre><code class="language-python">def make_loud(func):
-    def wrapper():
-        return func().upper() + "!"   # call the original, then add something
-    return wrapper</code></pre>
+      <div class="callout trick">
+        <div class="callout-title">🧠 The one rule behind every decorator</div>
+        <p class="mnemonic"><code>@deco</code> on top of <code>def f</code> just means <code>f = deco(f)</code>.</p>
+        <p>Python hands your function to <code>deco</code> and keeps whatever comes back <em>in place of</em> the original. Everything below follows from this one line.</p>
+      </div>
 
-      <p><strong>Step 2</strong> — wrap a function by hand:</p>
-<pre><code class="language-python">def greet():
-    return "hello"
+      <h3>Why do I need a function inside a function?</h3>
+      <p>Because a decorator deals with <strong>two different moments</strong>:</p>
+      <div class="table-wrap"><table>
+        <tr><th>Moment</th><th>When it happens</th><th>How often</th></tr>
+        <tr><td>⏱️ <strong>Decorating time</strong></td><td>When Python reads the <code>def</code> with <code>@</code> on it</td><td><strong>Once</strong></td></tr>
+        <tr><td>📞 <strong>Call time</strong></td><td>Every time someone calls the function</td><td><strong>Every call</strong></td></tr>
+      </table></div>
+      <p>Each moment needs its own function. Watch what happens with only <strong>one</strong> layer:</p>
 
-greet = make_loud(greet)    # replace greet with the wrapped version
-print(greet())              # → HELLO!</code></pre>
+<pre><code class="language-python">def announce(func):
+    print(f"Calling {func.__name__}...")   # ← runs at DECORATING time
+    return func
 
-      <p><strong>Step 3</strong> — the <code>@</code> shortcut does exactly the same thing:</p>
-<pre><code class="language-python">@make_loud                  # same as: greet = make_loud(greet)
+@announce            # → Calling greet...   printed right here, ONCE
 def greet():
     return "hello"
 
-print(greet())              # → HELLO!</code></pre>
+greet()              # → 'hello'    no message!
+greet()              # → 'hello'    no message!</code></pre>
+
+      <p>The message printed once, when the <code>def</code> was read, and never again. To run code <strong>on every call</strong>, you need an inner function — the <strong>wrapper</strong> — that Python will call instead of the original:</p>
+
+<pre><code class="language-python">def announce(func):              # layer 1: runs ONCE, receives the function
+    def wrapper():               # layer 2: runs on EVERY call
+        print(f"Calling {func.__name__}...")
+        return func()            # then run the original
+    return wrapper               # greet now points to wrapper
+
+@announce
+def greet():
+    return "hello"
+
+greet()     # → Calling greet...   'hello'
+greet()     # → Calling greet...   'hello'   ✅ every time</code></pre>
 
       <div class="callout trick">
         <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic"><code>@deco</code> on top of <code>def f</code> just means <code>f = deco(f)</code>.</p>
+        <p class="mnemonic">Outer function = <em>set up once</em>. Inner function = <em>do every call</em>.</p>
       </div>
 
       <h3>A real decorator: works with any function</h3>
+      <p>Two small upgrades make a wrapper work for any function: <code>*args, **kwargs</code> accepts whatever arguments the original takes, and <code>return result</code> passes its answer back.</p>
 <pre><code class="language-python">import functools
 import time
 
 def timer(func):
-    @functools.wraps(func)                 # keep the original name and docstring
-    def wrapper(*args, **kwargs):          # accept whatever arguments func takes
+    @functools.wraps(func)                 # keep the original name and docstring (see below)
+    def wrapper(*args, **kwargs):          # accept any arguments…
         start = time.perf_counter()
-        result = func(*args, **kwargs)     # call the original
+        result = func(*args, **kwargs)     # …and pass them straight through
         print(f"{func.__name__} took {time.perf_counter() - start:.2f}s")
-        return result                      # pass the result back!
+        return result                      # hand the original's answer back
     return wrapper
 
 @timer
@@ -249,34 +270,105 @@ def make_tea(minutes):
 print(make_tea(1))     # → make_tea took 1.00s
                        # → tea ready</code></pre>
 
-      <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick — the four lines every decorator has</div>
-        <p class="mnemonic">wraps → wrapper(*args, **kwargs) → call func → return result</p>
+      <h3>Why 3 layers when the decorator takes a setting?</h3>
+      <p>Look closely at the two ways a decorator line can look:</p>
+      <div class="split">
+        <div>
+          <h4><code>@timer</code></h4>
+          <p>No parentheses. Python calls <code>timer(func)</code> straight away — <code>timer</code> receives the <strong>function</strong>.</p>
+        </div>
+        <div>
+          <h4><code>@repeat(3)</code></h4>
+          <p>Parentheses! Python runs <code>repeat(3)</code> <strong>first</strong>, before it has even looked at your function — <code>repeat</code> receives only the <strong>number 3</strong>.</p>
+        </div>
       </div>
+      <p>So <code>repeat(3)</code> can't do the decorating itself — it doesn't have the function yet. Its job is to <strong>remember the 3 and return a normal decorator</strong>. That's the extra layer. Here's <code>@repeat(3)</code> written out by hand:</p>
 
-      <h3>Decorators with settings</h3>
-      <p>Need <code>@repeat(3)</code>? Add one more outer function to hold the setting:</p>
-<pre><code class="language-python">def repeat(times):                       # 1. takes the setting
-    def decorator(func):                 # 2. takes the function
+<pre><code class="language-python">def repeat(times):                         # layer 1 — receives the SETTING
+    def decorator(func):                   # layer 2 — receives the FUNCTION
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):    # 3. takes the call's arguments
+        def wrapper(*args, **kwargs):      # layer 3 — receives the CALL's arguments
             for _ in range(times):
                 result = func(*args, **kwargs)
             return result
         return wrapper
     return decorator
 
-@repeat(3)
 def wave():
     print("👋")
 
-wave()     # → 👋 👋 👋 (on three lines)</code></pre>
+decorator = repeat(3)       # 1. runs layer 1 → remembers times=3, returns `decorator`
+wave = decorator(wave)      # 2. runs layer 2 → remembers func,    returns `wrapper`
+wave()                      # 3. runs layer 3 → 👋 👋 👋
+
+# The @ line does steps 1 and 2 for you:
+@repeat(3)
+def wave():
+    print("👋")</code></pre>
+
+      <h3>So how do I decide: 2 layers or 3?</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Your decorator line</th><th>Layers</th><th>What each layer receives</th></tr>
+        <tr><td><code>@timer</code> — no parentheses</td><td><strong>2</strong></td><td>the function → the call's arguments</td></tr>
+        <tr><td><code>@repeat(3)</code> — has parentheses</td><td><strong>3</strong></td><td>the setting → the function → the call's arguments</td></tr>
+      </table></div>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Parentheses after the @? Add one more layer.”</p>
+        <p>Each layer receives exactly one kind of thing, always in this order: <strong>settings → function → arguments</strong>.</p>
+      </div>
+
+      <h3>What is <code>functools</code>? Is <code>wraps</code> built in?</h3>
+      <p><code>functools</code> is a module in Python's <strong>standard library</strong> — it comes with every Python install, so there's nothing to <code>pip install</code>, but you do need to <code>import</code> it. It's a toolbox of helpers for working with functions.</p>
+      <p><code>functools.wraps</code> is itself a decorator, and it fixes a side effect of wrapping. After decorating, the name <code>add</code> points to <code>wrapper</code>, so without help the function forgets who it was:</p>
+
+<pre><code class="language-python">def plain(func):
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+@plain
+def add(a, b):
+    """Add two numbers."""
+    return a + b
+
+print(add.__name__, add.__doc__)    # → wrapper None   😕 name and docstring lost</code></pre>
+
+<pre><code class="language-python">import functools
+
+def keep_name(func):
+    @functools.wraps(func)          # copy func's name and docstring onto wrapper
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+@keep_name
+def add(a, b):
+    """Add two numbers."""
+    return a + b
+
+print(add.__name__, add.__doc__)    # → add Add two numbers.   ✅</code></pre>
+
+      <p>Notice that <code>@functools.wraps(func)</code> has parentheses — it's a <strong>3-layer decorator</strong>, exactly like <code>@repeat(3)</code>. Its setting is the original function, whose name and docstring it copies onto the wrapper.</p>
+
+      <h4>Decorators you get for free</h4>
+      <div class="table-wrap"><table>
+        <tr><th>Decorator</th><th>Where from</th><th>What it does</th></tr>
+        <tr><td><code>@property</code></td><td>Built in — no import</td><td>Call a method like an attribute: <code>circle.area</code></td></tr>
+        <tr><td><code>@classmethod</code>, <code>@staticmethod</code></td><td>Built in — no import</td><td>Methods that get the class, or nothing, instead of <code>self</code></td></tr>
+        <tr><td><code>@functools.wraps(func)</code></td><td><code>import functools</code></td><td>Copy name and docstring onto a wrapper</td></tr>
+        <tr><td><code>@functools.lru_cache</code> / <code>@functools.cache</code></td><td><code>import functools</code></td><td>Remember results of earlier calls (Module 10)</td></tr>
+        <tr><td><code>@dataclass</code></td><td><code>from dataclasses import dataclass</code></td><td>Write <code>__init__</code>, <code>__repr__</code>, <code>__eq__</code> (Module 8)</td></tr>
+        <tr><td><code>@contextmanager</code></td><td><code>from contextlib import contextmanager</code></td><td>Build a <code>with</code>-block helper (Module 9)</td></tr>
+      </table></div>
 
       <div class="callout warn">
         <div class="callout-title">⚠️ Common mistakes</div>
         <ul>
           <li><strong>Forgetting <code>return result</code></strong> in the wrapper — the decorated function then always returns <code>None</code>.</li>
-          <li><strong>Forgetting <code>@functools.wraps(func)</code></strong> — the function's name becomes <code>"wrapper"</code> and its docstring disappears, which confuses debuggers and docs.</li>
+          <li><strong>Forgetting <code>@functools.wraps(func)</code></strong> — the function's name becomes <code>"wrapper"</code> and its docstring disappears.</li>
+          <li><strong>Leaving off the parentheses</strong> — writing <code>@repeat</code> instead of <code>@repeat(3)</code> hands your function to the <em>settings</em> layer, and calling it fails with <code>TypeError: … missing 1 required positional argument: 'func'</code>.</li>
         </ul>
       </div>
 
@@ -305,8 +397,9 @@ print(add_one(4))</code></pre>
         <div class="callout-title">✅ Remember</div>
         <ul>
           <li>A decorator wraps a function to add behaviour; <code>@deco</code> = <code>f = deco(f)</code>.</li>
-          <li>Use <code>*args, **kwargs</code>, <code>@functools.wraps</code>, and return the result.</li>
-          <li>Decorator with arguments = one extra outer function.</li>
+          <li>Outer function runs once (gets the function); the inner wrapper runs on every call.</li>
+          <li>Parentheses after the <code>@</code> (like <code>@repeat(3)</code>) → add a third, outermost layer for the setting.</li>
+          <li><code>functools</code> ships with Python; <code>@functools.wraps(func)</code> keeps the original name and docstring.</li>
         </ul>
       </div>
 
