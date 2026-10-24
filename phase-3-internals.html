@@ -47,36 +47,49 @@
     <!-- ===================================================== M11 -->
     <section class="module" id="m11" data-title="M11 · Compilation &amp; Bytecode">
       <div class="module-head">
-        <div><span class="module-tag">MODULE 11</span><h2>Compilation &amp; Bytecode</h2></div>
+        <div><span class="module-tag">MODULE 11</span><h2>From Source Code to Running Code</h2></div>
         <button class="learn-btn" type="button">Mark as learned</button>
       </div>
 
       <div class="callout core">
-        <div class="callout-title">🔑 Core idea</div>
-        <p>Python is <strong>compiled to bytecode</strong>, then that bytecode is <strong>interpreted</strong> by the Python Virtual Machine (PVM). So it's both — there is a compile step, but it produces bytecode (<code>.pyc</code>), not machine code.</p>
+        <div class="callout-title">💬 In plain English</div>
+        <p>Your computer can't run Python text directly. So when you run a <code>.py</code> file, Python first <strong>translates</strong> your code into a list of tiny, simple instructions called <strong>bytecode</strong>. Then a program inside Python, the <strong>Python Virtual Machine (PVM)</strong>, carries out those instructions one by one.</p>
       </div>
 
-      <div class="flow">
-        <span class="step">Source <code>.py</code></span>
-        <span class="arrow">→</span>
-        <span class="step">Tokenizer</span>
-        <span class="arrow">→</span>
-        <span class="step">AST</span>
-        <span class="arrow">→</span>
-        <span class="step">Compiler</span>
-        <span class="arrow">→</span>
-        <span class="step">Bytecode <code>.pyc</code></span>
-        <span class="arrow">→</span>
-        <span class="step"><strong>PVM</strong> executes</span>
+      <div class="analogy">
+        <span class="emoji">🧑‍🍳</span>
+        <div>
+          <strong>A recipe turned into kitchen steps.</strong>
+          <p>Your code is a recipe written in full sentences. Python rewrites it as short numbered steps (“take a”, “take b”, “add them”, “serve”) — that's bytecode. The chef (the PVM) follows the steps. The rewritten steps are even saved, so next time the chef can skip the rewriting.</p>
+        </div>
       </div>
+
+      <h3>The four stages, in plain words</h3>
+      <div class="flow">
+        <span class="step">Source <code>.py</code></span><span class="arrow">→</span>
+        <span class="step">Tokenizer</span><span class="arrow">→</span>
+        <span class="step">Parser (AST)</span><span class="arrow">→</span>
+        <span class="step">Compiler</span><span class="arrow">→</span>
+        <span class="step">Bytecode</span><span class="arrow">→</span>
+        <span class="step"><strong>PVM</strong> runs it</span>
+      </div>
+      <div class="table-wrap"><table>
+        <tr><th>Stage</th><th>What it does</th><th>For <code>x = 1 + 2</code></th></tr>
+        <tr><td><strong>Tokenizer</strong></td><td>Chops the text into “words” and symbols</td><td><code>x</code> · <code>=</code> · <code>1</code> · <code>+</code> · <code>2</code></td></tr>
+        <tr><td><strong>Parser</strong></td><td>Arranges the words into a tree that shows the structure — the <em>AST</em> (abstract syntax tree)</td><td>“assign to <code>x</code> the result of adding <code>1</code> and <code>2</code>”</td></tr>
+        <tr><td><strong>Compiler</strong></td><td>Turns the tree into bytecode instructions</td><td>“load <code>3</code>” (already folded!), “store it in <code>x</code>”</td></tr>
+        <tr><td><strong>PVM</strong></td><td>Executes the instructions one by one</td><td>puts <code>3</code> in <code>x</code></td></tr>
+      </table></div>
+      <p class="muted">Syntax errors are caught in the first two stages — that's why a typo at the bottom of a file stops the whole file from running, even the lines above it.</p>
 
       <div class="callout trick">
         <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">“Translate once, cook many times.”</p>
-        <p>The compiler translates your recipe into kitchen shorthand (bytecode) and keeps it in <code>__pycache__</code>. The chef (PVM) cooks from the shorthand every run.</p>
+        <p class="mnemonic">“Translate once, run many times.”</p>
+        <p>Python is <strong>both</strong> compiled (to bytecode) and interpreted (the PVM runs the bytecode).</p>
       </div>
 
-      <h3>Peek at the bytecode with <code>dis</code></h3>
+      <h3>What does bytecode look like?</h3>
+      <p>The built-in <code>dis</code> module (“disassemble”) shows the bytecode for any function:</p>
 <pre><code class="language-python">import dis
 
 def add(a, b):
@@ -84,70 +97,163 @@ def add(a, b):
 
 dis.dis(add)</code></pre>
 <pre class="diagram">  RESUME                            0
-  LOAD_FAST_BORROW_LOAD_FAST_BORROW 1 (a, b)    ← push a and b
-  BINARY_OP                         0 (+)       ← pop two, push a + b
-  RETURN_VALUE                                  ← pop and return</pre>
-      <p class="muted">Output from Python 3.14. Opcode names change between versions (older ones show <code>LOAD_FAST</code> / <code>BINARY_ADD</code>) — the shape is what matters.</p>
+  LOAD_FAST_BORROW_LOAD_FAST_BORROW 1 (a, b)   ← fetch a and b
+  BINARY_OP                         0 (+)      ← add them
+  RETURN_VALUE                                 ← hand back the result</pre>
+      <p class="muted">Output from Python 3.14. Instruction names change between versions (older ones show <code>LOAD_FAST</code> and <code>BINARY_ADD</code>) — the idea stays the same. <code>RESUME</code> is just bookkeeping at the start of every function.</p>
 
-      <h3>It's a stack machine</h3>
+      <h3>How the PVM runs it: a stack of plates</h3>
+      <p>The PVM keeps a pile of values called the <strong>stack</strong>. Instructions put values on top, take them off, and put results back. Here is <code>add(2, 3)</code> step by step:</p>
+      <div class="table-wrap"><table>
+        <tr><th>Instruction</th><th>What happens</th><th>Stack afterwards</th></tr>
+        <tr><td><code>LOAD … a, b</code></td><td>Put <code>a</code> and then <code>b</code> on the pile</td><td><code>[2, 3]</code></td></tr>
+        <tr><td><code>BINARY_OP +</code></td><td>Take the top two off, add them, put the answer back</td><td><code>[5]</code></td></tr>
+        <tr><td><code>RETURN_VALUE</code></td><td>Take the top value off and return it</td><td><code>[]</code> → returns <code>5</code></td></tr>
+      </table></div>
       <div class="callout trick">
         <div class="callout-title">🧠 Memory trick — a stack of plates</div>
-        <p><code>LOAD_*</code> puts a plate on the stack. <code>BINARY_OP</code> takes two plates off and puts the result back. <code>STORE_*</code> takes the top plate and gives it a name. <code>RETURN_VALUE</code> hands the top plate to the caller.</p>
+        <p><code>LOAD</code> = put a plate on top. <code>BINARY_OP</code> = take two plates, put one back. <code>STORE</code> = take the top plate and write a name on it. <code>RETURN_VALUE</code> = hand the top plate to the caller.</p>
       </div>
 
-      <h3><code>.pyc</code> files</h3>
+      <h3><code>.pyc</code> files: saved bytecode</h3>
+      <p>Translating takes time, so when you <strong>import</strong> a module Python saves its bytecode in a <code>__pycache__</code> folder, in a file like <code>helpers.cpython-314.pyc</code>. Next time, if the <code>.py</code> file hasn't changed, Python loads the saved bytecode and skips the translation — your program starts faster.</p>
       <ul>
-        <li>Live in <code>__pycache__/</code>, named per version: <code>module.cpython-314.pyc</code>.</li>
-        <li>Rebuilt when the source changes (timestamp or hash check).</li>
-        <li><strong>Version-specific</strong> — 3.12 bytecode won't run on 3.14.</li>
-        <li><code>PYTHONDONTWRITEBYTECODE=1</code> stops Python writing them.</li>
-        <li>The script you run directly isn't cached — only imported modules are.</li>
+        <li>The file name includes the Python version (<code>cpython-314</code>), because bytecode from one version doesn't work on another.</li>
+        <li>If you edit the <code>.py</code> file, Python notices and rebuilds the <code>.pyc</code>.</li>
+        <li>The script you run directly (<code>python main.py</code>) isn't saved — only modules it imports.</li>
+        <li>Safe to delete: <code>__pycache__</code> folders are rebuilt automatically, and they're usually listed in <code>.gitignore</code>.</li>
       </ul>
 
-      <h3>Constant folding</h3>
-<pre><code class="language-python">def seconds_per_day():
+      <h3>Constant folding: doing the maths ahead of time</h3>
+      <div class="callout core">
+        <div class="callout-title">💬 In plain English</div>
+        <p>If part of your code only uses <strong>fixed values</strong> — numbers or strings typed directly into the code — the compiler works out the answer <strong>once, while translating</strong>, and stores just the answer. It's called <em>folding</em> because several values are folded into one.</p>
+      </div>
+<pre><code class="language-python">import dis
+
+def seconds_per_day():
     return 24 * 60 * 60
 
-seconds_per_day.__code__.co_consts   # (24, 86400) — 86400 was computed at COMPILE time
+dis.dis(seconds_per_day)
+#   LOAD_CONST   86400      ← the multiplication is already done!
+#   RETURN_VALUE</code></pre>
+      <p><strong>Why you care:</strong> you can write the readable <code>24 * 60 * 60</code> instead of a mystery number like <code>86400</code>, and it costs nothing — the multiplying never happens while your program runs.</p>
 
-# Folding has limits: "a" * 1000 is folded, a huge "a" * 10_000 is not
-# (CPython won't bake very large constants into the .pyc)</code></pre>
+      <h4>When it can't fold</h4>
+      <p>Folding only works when every value is known before the program runs. Anything involving a variable or a function call has to wait until runtime:</p>
+<pre><code class="language-python">def hours_to_seconds(hours):
+    return hours * 60 * 60      # NOT folded: read as (hours * 60) * 60,
+                                # and hours isn't known until the call
 
-      <h3>Code objects</h3>
-<pre><code class="language-python">def example(x):
-    return x * 2 + 1
+def hours_to_seconds(hours):
+    return hours * (60 * 60)    # 60 * 60 IS folded → hours * 3600
 
-code = example.__code__
-code.co_varnames     # ('x',)         local names
-code.co_consts       # constants used (exact tuple varies by version)
-code.co_stacksize    # max stack depth the function needs
+len("hello")                    # NOT folded: function calls always run at runtime</code></pre>
+      <p class="muted">Python also refuses to fold results that would be huge (like <code>"a" * 10_000</code>), so the saved bytecode stays small.</p>
 
-c = compile("1 + 2", "&lt;string&gt;", "eval")   # compile a string yourself
-eval(c)              # 3</code></pre>
-
-      <div class="callout warn">
-        <div class="callout-title">⚠️ Don't forget</div>
-        <ul>
-          <li>“Interpreted vs compiled?” → <strong>both</strong>: compiled to bytecode, then interpreted.</li>
-          <li>Bytecode isn't portable across Python versions.</li>
-          <li>Since 3.11 the interpreter <em>specializes</em> hot bytecode (adaptive interpreter) — one reason modern Python got faster.</li>
-        </ul>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Only literals fold.”</p>
+        <p>Numbers and strings typed straight into the code can be pre-computed. Variables and function calls can't.</p>
       </div>
+
+      <h3>Code objects: where the bytecode lives</h3>
+      <div class="callout core">
+        <div class="callout-title">💬 In plain English</div>
+        <p>When Python compiles a function, it packs everything needed to run it into a <strong>code object</strong>: the bytecode instructions, the constants it uses, and the names of its variables. Every function keeps its code object in <code>func.__code__</code>.</p>
+      </div>
+      <div class="analogy">
+        <span class="emoji">🗂️</span>
+        <div>
+          <strong>The steps vs the recipe card.</strong>
+          <p>The <strong>code object</strong> is the list of numbered steps plus the ingredient list. The <strong>function object</strong> is the recipe card that holds those steps <em>and</em> adds its own label: its name, its default values, and which file's global variables it can see. Two functions can share the same steps but have different labels.</p>
+        </div>
+      </div>
+<pre><code class="language-python">def greet(name, excited=False):
+    message = "Hello, " + name
+    if excited:
+        message = message.upper()
+    return message
+
+code = greet.__code__
+print(code.co_argcount)    # → 2                              how many parameters
+print(code.co_varnames)    # → ('name', 'excited', 'message')  local variable names
+print(code.co_consts)      # → ('Hello, ',)                    fixed values it uses
+print(code.co_names)       # → ('upper',)                      other names it looks up
+print(len(code.co_code))   # → 72                              raw bytecode, in bytes
+
+print(greet.__defaults__)  # → (False,)   defaults live on the FUNCTION, not the code</code></pre>
+      <div class="table-wrap"><table>
+        <tr><th>Attribute</th><th>Plain meaning</th></tr>
+        <tr><td><code>co_code</code></td><td>The raw bytecode instructions</td></tr>
+        <tr><td><code>co_consts</code></td><td>Fixed values used in the body (strings, numbers, folded results)</td></tr>
+        <tr><td><code>co_varnames</code></td><td>Parameter and local variable names</td></tr>
+        <tr><td><code>co_names</code></td><td>Global names and attributes the code looks up (like <code>.upper</code>)</td></tr>
+        <tr><td><code>co_argcount</code></td><td>Number of positional parameters</td></tr>
+        <tr><td><code>co_stacksize</code></td><td>How tall the “stack of plates” can get while it runs</td></tr>
+      </table></div>
+      <p class="muted">Exact numbers (like the byte count) differ between Python versions. Small numbers such as <code>60</code> may not appear in <code>co_consts</code> in 3.14 — they get their own <code>LOAD_SMALL_INT</code> instruction.</p>
+
+      <h4>Making code objects yourself</h4>
+<pre><code class="language-python">code = compile("price * qty", "&lt;calc&gt;", "eval")   # text → code object
+print(type(code).__name__)                         # → code
+print(eval(code, {"price": 50, "qty": 3}))         # → 150   run it with these variables</code></pre>
+      <p>This is what Python does behind the scenes for every file and function. You'll rarely need it, but tools like debuggers, test frameworks and template engines use it.</p>
 
       <div class="predict">
         <div class="predict-head">🤔 Predict the output</div>
 <pre><code class="language-python">def f():
     return 60 * 60
 
-print(3600 in f.__code__.co_consts)</code></pre>
+def g(x):
+    return x * 60 * 60
+
+print(3600 in f.__code__.co_consts)
+print(3600 in g.__code__.co_consts)</code></pre>
         <details>
           <summary>Show answer</summary>
           <div class="answer">
-<pre>True</pre>
-            <p>The compiler folded <code>60 * 60</code> into <code>3600</code>, so the multiplication never happens at runtime.</p>
+<pre>True
+False</pre>
+            <p><code>60 * 60</code> uses only literals, so it folds into <code>3600</code>. In <code>g</code>, Python computes <code>x * 60</code> first, which can't be known ahead of time, so nothing folds.</p>
           </div>
         </details>
       </div>
+
+      <div class="callout good">
+        <div class="callout-title">✅ Remember</div>
+        <ul>
+          <li>Python translates source → bytecode, then the PVM runs the bytecode on a stack.</li>
+          <li><code>.pyc</code> files in <code>__pycache__</code> are saved bytecode so imports start faster.</li>
+          <li>Constant folding pre-computes expressions made only of literals.</li>
+          <li>A code object holds a function's bytecode, constants and variable names; the function object adds its name, defaults and globals.</li>
+        </ul>
+      </div>
+
+      <details class="deeper">
+        <summary>🔬 Go deeper <small>— the AST, the adaptive interpreter, .pyc details</small></summary>
+        <div class="deeper-body">
+          <h4>See the AST yourself</h4>
+<pre><code class="language-python">import ast
+print(ast.dump(ast.parse("x = 1 + 2")))
+# Module(body=[Assign(targets=[Name(id='x', ctx=Store())],
+#                     value=BinOp(left=Constant(value=1), op=Add(), right=Constant(value=2)))])</code></pre>
+          <p>Linters, formatters and type checkers work on this tree instead of on raw text.</p>
+
+          <h4>The adaptive interpreter (3.11+)</h4>
+          <p>While your program runs, Python watches which instructions run a lot. A general <code>BINARY_OP +</code> that keeps seeing two integers is swapped for a faster “add two ints” version. This <em>specialization</em> is a big reason Python 3.11+ is noticeably faster than 3.10. You can peek with <code>dis.dis(func, adaptive=True)</code> after calling the function many times.</p>
+
+          <h4><code>.pyc</code> details</h4>
+          <ul>
+            <li>By default Python checks the source file's modification time and size to decide whether the <code>.pyc</code> is stale; hash-based checking is also available.</li>
+            <li><code>PYTHONDONTWRITEBYTECODE=1</code> (or <code>python -B</code>) stops Python writing <code>.pyc</code> files.</li>
+            <li><code>python -m compileall .</code> pre-compiles a whole project, which some deployments do to speed up the first start.</li>
+          </ul>
+
+          <h4><code>exec</code> vs <code>eval</code></h4>
+          <p><code>compile(..., "eval")</code> is for a single expression and is run with <code>eval()</code>, which returns its value. <code>compile(..., "exec")</code> is for statements and is run with <code>exec()</code>, which returns <code>None</code>. Never run text from untrusted users this way — it can do anything your program can.</p>
+        </div>
+      </details>
     </section>
 
     <!-- ===================================================== M12 -->
@@ -344,42 +450,69 @@ for stat in snapshot.statistics("lineno")[:5]:
         <button class="learn-btn" type="button">Mark as learned</button>
       </div>
 
+      <h3>First, four words you need</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Word</th><th>Plain meaning</th></tr>
+        <tr><td><strong>Thread</strong></td><td>A separate line of work inside one program. A program with two threads can, in principle, do two things at once — like a cook stirring a pot while a helper chops vegetables.</td></tr>
+        <tr><td><strong>Lock</strong> (mutex)</td><td>A “one at a time” token. Whoever holds it may continue; everyone else waits until it's handed back.</td></tr>
+        <tr><td><strong>CPU-bound</strong></td><td>Work that keeps the processor busy calculating: maths, resizing images, parsing big files.</td></tr>
+        <tr><td><strong>I/O-bound</strong></td><td>Work that mostly <em>waits</em>: for a web page, a database, a file on disk, a timer.</td></tr>
+      </table></div>
+
       <div class="callout core">
-        <div class="callout-title">🔑 Core idea</div>
-        <p>The GIL is a <strong>mutex that lets only one thread run Python bytecode at a time</strong>. It exists because CPython's reference counts aren't thread-safe. It blocks CPU parallelism with threads — but I/O-bound threads work fine, because the GIL is released while waiting on I/O.</p>
+        <div class="callout-title">💬 In plain English</div>
+        <p>The GIL is one big lock inside CPython (the standard Python). The rule: <strong>only one thread can run Python code at any moment.</strong> If you start four threads, they take turns very quickly instead of running side by side. While a thread is <em>waiting</em> (for the network, a file, <code>sleep</code>), it gives the lock up so another thread can run.</p>
       </div>
 
-      <div class="callout trick">
-        <div class="callout-title">🧠 Memory trick — the one-microphone room</div>
-        <p>Only the person holding the mic (thread) can speak (run bytecode). When someone steps out for food (I/O), the mic is free for others. Shouting louder (more threads) doesn't make two people speak at once.</p>
-      </div>
-
-<pre class="diagram">Thread 1:  ████░░░░████░░░░████
-Thread 2:  ░░░░████░░░░████░░░░
-               ↑ the interpreter asks for a switch every 5 ms (sys.getswitchinterval())</pre>
-
-      <h3>What the GIL does — and doesn't — protect</h3>
-      <div class="split">
-        <div class="imm">
-          <h4>✅ Protects</h4>
-          <ul><li>CPython internals (refcounts, allocator)</li><li>Each single bytecode instruction</li></ul>
-        </div>
-        <div class="mut">
-          <h4>❌ Does NOT protect</h4>
-          <ul><li>Your data structures</li><li>Multi-step operations like <code>counter += 1</code></li><li>The logic of your program</li></ul>
+      <div class="analogy">
+        <span class="emoji">🎤</span>
+        <div>
+          <strong>A meeting with one microphone.</strong>
+          <p>Only the person holding the mic can speak. People pass it around quickly, so everyone gets turns — but never two at once. When someone steps out to take a phone call (waiting on I/O), they hand the mic over and others carry on.</p>
         </div>
       </div>
+
+      <h3>Why does the GIL exist?</h3>
+      <p>Remember reference counting from <a href="#m12">Module 12</a>: every object has a count of how many things use it. If two threads changed the same count at exactly the same moment, one update could be lost — and Python might free an object that's still in use, crashing the program. Putting a lock on <em>every</em> object would make normal single-threaded code slower. One big lock is the simple, fast solution: no two threads ever touch Python's internals at the same time.</p>
+
+      <h3>What it means in practice</h3>
+<pre><code class="language-python">import threading, time
+
+def count_down(n):            # CPU-bound: pure calculation
+    while n &gt; 0:
+        n -= 1
+
+def run_twice_with_threads(func, arg):
+    threads = [threading.Thread(target=func, args=(arg,)) for _ in range(2)]
+    for t in threads: t.start()
+    for t in threads: t.join()          # wait for both to finish
+
+# CPU-bound: threads take turns, so there is NO speed-up
+#   count_down twice, one after the other   → ~1.3 s
+#   count_down twice, in two threads        → ~1.3 s
+
+# I/O-bound: waiting threads hand over the GIL, so they DO overlap
+#   time.sleep(1) twice, one after the other → 2.0 s
+#   time.sleep(1) twice, in two threads      → 1.0 s
+run_twice_with_threads(time.sleep, 1)</code></pre>
+      <p class="muted">Timings measured on one machine with Python 3.14; yours will differ, but the pattern holds.</p>
 
       <div class="callout trick">
         <div class="callout-title">🧠 Memory trick</div>
-        <p class="mnemonic">“The GIL guards Python's guts, not your data.”</p>
+        <p class="mnemonic">“Waiting work shares the mic. Thinking work fights over it.”</p>
+        <p>Threads help when your program mostly waits. They don't help when it mostly calculates.</p>
       </div>
 
-      <h3>Why <code>counter += 1</code> isn't thread-safe</h3>
-<pre class="diagram">LOAD_GLOBAL     counter   ← read
-LOAD_SMALL_INT  1
-BINARY_OP       (+=)      ← add
-STORE_GLOBAL    counter   ← write      (a thread switch can land between any two)</pre>
+      <h3>The GIL does NOT make your code thread-safe</h3>
+      <p>This surprises almost everyone. The GIL protects Python's <em>internals</em>, not your variables. Take <code>counter += 1</code>. It looks like one step, but it's really three: <strong>read</strong> the value, <strong>add</strong> one, <strong>write</strong> it back. Python can switch threads between any two of them:</p>
+      <div class="table-wrap"><table>
+        <tr><th>Step</th><th>Thread A</th><th>Thread B</th><th><code>counter</code></th></tr>
+        <tr><td>1</td><td>reads 5</td><td></td><td>5</td></tr>
+        <tr><td>2</td><td><em>— switch —</em></td><td>reads 5</td><td>5</td></tr>
+        <tr><td>3</td><td></td><td>adds 1, writes 6</td><td>6</td></tr>
+        <tr><td>4</td><td>adds 1, writes 6</td><td></td><td><strong>6</strong> ← should be 7!</td></tr>
+      </table></div>
+      <p>Two increments happened but only one counted. This is a <strong>race condition</strong>. The fix is your own lock around the read-add-write:</p>
 <pre><code class="language-python">import threading
 
 counter = 0
@@ -388,51 +521,79 @@ lock = threading.Lock()
 def increment():
     global counter
     for _ in range(1_000_000):
-        with lock:            # without the lock, updates can be lost
+        with lock:            # only one thread at a time inside this block
             counter += 1
 
 threads = [threading.Thread(target=increment) for _ in range(2)]
 for t in threads: t.start()
 for t in threads: t.join()
-print(counter)                # 2000000 — guaranteed only because of the lock</code></pre>
+print(counter)                # → 2000000   guaranteed, because of the lock</code></pre>
 
-      <h3>When is the GIL released?</h3>
-      <ul>
-        <li>Blocking I/O — files, sockets, <code>time.sleep()</code></li>
-        <li>Many C extensions while crunching numbers (NumPy, hashing, compression, DB drivers)</li>
-      </ul>
-
-      <h3>The decision rule</h3>
-      <div class="table-wrap"><table>
-        <tr><th>Bottleneck</th><th>Use</th><th>Why</th></tr>
-        <tr><td>I/O-bound</td><td>Threads (or asyncio)</td><td>GIL is released while waiting</td></tr>
-        <tr><td>CPU-bound</td><td>Multiprocessing</td><td>Each process has its own GIL</td></tr>
-        <tr><td>Both</td><td>asyncio + <code>ProcessPoolExecutor</code></td><td>Async for I/O, processes for compute</td></tr>
-      </table></div>
-
-      <h3>The free-threaded future (PEP 703)</h3>
-      <p>Python 3.13 shipped an experimental <strong>free-threaded</strong> build with no GIL (<code>python3.13t</code>). In 3.14 that build is officially supported, but it's still a separate build — the regular <code>python</code> keeps the GIL. Check with <code>sys._is_gil_enabled()</code>.</p>
-
-      <div class="callout warn">
-        <div class="callout-title">⚠️ Don't forget</div>
-        <ul>
-          <li>The GIL makes CPython safe, not your code — always lock shared mutable state.</li>
-          <li>Threads don't speed up pure-Python CPU work; they can even slow it down.</li>
-        </ul>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“The GIL guards Python's guts, not your data.”</p>
       </div>
+
+      <h3>So what should I use?</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Your program mostly…</th><th>Use</th><th>Why</th></tr>
+        <tr><td>Waits (web requests, files, databases)</td><td>Threads or asyncio</td><td>Waiting threads hand over the GIL</td></tr>
+        <tr><td>Calculates (maths, images, parsing)</td><td>Multiple processes</td><td>Each process is a separate Python with its own GIL</td></tr>
+        <tr><td>Both</td><td>asyncio + a process pool</td><td>Async for waiting, processes for calculating</td></tr>
+      </table></div>
+      <p>Phase 4 covers each of these in detail.</p>
+
+      <h3>Python without the GIL</h3>
+      <p>There is now a special <strong>free-threaded</strong> build of Python with no GIL, where threads really can calculate side by side. It arrived as an experiment in 3.13 and is officially supported in 3.14 — but it's a separate download (often named <code>python3.14t</code>), not the normal <code>python</code>. Check which one you have with <code>sys._is_gil_enabled()</code>.</p>
 
       <div class="predict">
         <div class="predict-head">🤔 Predict the output</div>
-<pre><code class="language-python"># Same counter program as above, but WITHOUT the lock.
+<pre><code class="language-python"># The same counter program as above, but WITHOUT the lock.
 # What does print(counter) show?</code></pre>
         <details>
           <summary>Show answer</summary>
           <div class="answer">
 <pre>Unpredictable — anything up to 2000000.</pre>
-            <p>On some versions and machines it often prints the right number, which makes the bug worse: the code is still wrong and can lose updates at any time. Correctness must come from the lock, not from luck.</p>
+            <p>On some machines it often prints the right number, which makes the bug sneakier: the code is still wrong and can lose updates at any time. Correctness must come from the lock, not from luck.</p>
           </div>
         </details>
       </div>
+
+      <div class="callout good">
+        <div class="callout-title">✅ Remember</div>
+        <ul>
+          <li>The GIL lets only one thread run Python code at a time; it exists to protect reference counts.</li>
+          <li>Threads speed up waiting (I/O), not calculating (CPU). For calculating, use processes.</li>
+          <li>The GIL doesn't protect your variables — use a <code>Lock</code> for shared data.</li>
+        </ul>
+      </div>
+
+      <details class="deeper">
+        <summary>🔬 Go deeper <small>— switch interval, bytecode of +=, C extensions</small></summary>
+        <div class="deeper-body">
+          <h4>How often threads switch</h4>
+<pre class="diagram">Thread 1:  ████░░░░████░░░░████
+Thread 2:  ░░░░████░░░░████░░░░
+               ↑ a waiting thread asks for the GIL; the holder hands it over
+                 after about 5 ms (sys.getswitchinterval() → 0.005)</pre>
+
+          <h4>The bytecode behind <code>counter += 1</code></h4>
+<pre class="diagram">LOAD_GLOBAL     counter   ← read
+LOAD_SMALL_INT  1
+BINARY_OP       (+=)      ← add
+STORE_GLOBAL    counter   ← write     (a switch can land between any two)</pre>
+          <p>The GIL makes each <em>single</em> instruction safe, but not a sequence of them.</p>
+
+          <h4>When is the GIL released?</h4>
+          <ul>
+            <li>Blocking I/O: files, sockets, <code>time.sleep()</code>.</li>
+            <li>Many C extensions while they crunch numbers — NumPy, hashing (<code>hashlib</code>), compression (<code>zlib</code>), many database drivers. That's why NumPy-heavy code can use several cores even with threads.</li>
+          </ul>
+
+          <h4>Other Pythons</h4>
+          <p>The GIL is a CPython feature. Jython and IronPython never had one; PyPy has its own. In everyday conversation, “Python” means CPython.</p>
+        </div>
+      </details>
     </section>
 
     <!-- ===================================================== REVIEW -->
@@ -442,6 +603,11 @@ print(counter)                # 2000000 — guaranteed only because of the lock<
       <div class="flashcards">
         <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Is Python interpreted or compiled?</div><div class="flashcard-face flashcard-back">Both — compiled to bytecode, then interpreted by the PVM.</div></div></button>
         <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What's a <code>.pyc</code> file?</div><div class="flashcard-face flashcard-back">Cached bytecode in <code>__pycache__/</code>, rebuilt when the source changes. Version-specific.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What is constant folding?</div><div class="flashcard-face flashcard-back">The compiler pre-computes expressions made only of literals, like <code>24 * 60 * 60</code> → <code>86400</code>, so the work never happens at runtime.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Is <code>x * 60 * 60</code> folded?</div><div class="flashcard-face flashcard-back">No — it's read as <code>(x * 60) * 60</code> and <code>x</code> is unknown until runtime. <code>x * (60 * 60)</code> would fold the <code>60 * 60</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What's a code object?</div><div class="flashcard-face flashcard-back">The compiled package for a function: bytecode, constants and variable names, found at <code>func.__code__</code>.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Code object vs function object?</div><div class="flashcard-face flashcard-back">The code object is the instructions. The function object wraps it and adds a name, default values and access to globals.</div></div></button>
+        <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Why does the GIL exist?</div><div class="flashcard-face flashcard-back">To protect reference counts: two threads updating the same count at once could corrupt it and free objects still in use.</div></div></button>
         <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">How does Python manage memory?</div><div class="flashcard-face flashcard-back">Reference counting (primary, immediate) + a cyclic GC for reference cycles.</div></div></button>
         <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">What is the GIL?</div><div class="flashcard-face flashcard-back">A mutex letting one thread run bytecode at a time. Protects CPython internals. Released during I/O.</div></div></button>
         <button class="flashcard" type="button"><div class="flashcard-inner"><div class="flashcard-face flashcard-front">Is <code>counter += 1</code> thread-safe?</div><div class="flashcard-face flashcard-back">No — it's several bytecode steps (read, add, write). Use a <code>Lock</code>.</div></div></button>
