@@ -395,6 +395,7 @@ pre.diagram {
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
 .split > div {
   border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; background: var(--surface);
+  min-width: 0;   /* let code blocks scroll inside the column instead of widening the page */
 }
 .split h4 { margin: 0 0 6px; font-size: 0.95rem; }
 .split .pill-row { display: flex; flex-wrap: wrap; gap: 6px; }

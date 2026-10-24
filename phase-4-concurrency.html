@@ -28,6 +28,7 @@
     <ol data-sidebar-modules></ol>
     <h4>Review</h4>
     <ol>
+      <li><a href="#async-vs-threads" data-target="async-vs-threads">⚖️ Asyncio vs threading</a></li>
       <li><a href="#decide" data-target="decide">🧭 Which one do I use?</a></li>
       <li><a href="#flashcards" data-target="flashcards">⚡ Quick-fire flashcards</a></li>
       <li><a href="#gotchas" data-target="gotchas">⚠️ Gotchas checklist</a></li>
@@ -43,6 +44,7 @@
       <li><a href="#m14"><span class="num">M14</span> Threading</a></li>
       <li><a href="#m15"><span class="num">M15</span> Multiprocessing</a></li>
       <li><a href="#m16"><span class="num">M16</span> Asyncio</a></li>
+      <li><a href="#async-vs-threads"><span class="num">⚖️</span> Asyncio vs threads</a></li>
       <li><a href="#decide"><span class="num">🧭</span> Decision guide</a></li>
     </ul>
 
@@ -334,6 +336,98 @@ asyncio.run(main())</code></pre>
             <p><code>time.sleep</code> never yields to the loop, so the two “concurrent” coroutines run back to back. Swap in <code>await asyncio.sleep(1)</code> and it prints <code>1.0</code>.</p>
           </div>
         </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== ASYNC VS THREADS -->
+    <section class="spy" id="async-vs-threads">
+      <h2>⚖️ Asyncio vs threading — the short version</h2>
+
+      <div class="callout core">
+        <div class="callout-title">💬 In plain English</div>
+        <p>Both are for programs that spend their time <strong>waiting</strong> (web requests, databases, files). Both overlap that waiting so many tasks finish in roughly the time of one. The real difference is <strong>who decides when to switch tasks</strong>:</p>
+        <ul>
+          <li><strong>Threading:</strong> the operating system switches between threads <em>whenever it likes</em> — even in the middle of a line.</li>
+          <li><strong>Asyncio:</strong> one thread, and a task switches <em>only when it says <code>await</code></em>.</li>
+        </ul>
+      </div>
+
+      <div class="analogy">
+        <span class="emoji">🍽️</span>
+        <div>
+          <strong>Several waiters vs one very organised waiter.</strong>
+          <p><strong>Threading</strong> hires a waiter per table: easy to arrange, but each waiter costs money (memory), and two waiters can grab the same plate (race conditions). <strong>Asyncio</strong> is one waiter who takes an order, and while the kitchen cooks, serves the next table. Cheap and orderly — but if that waiter stops to do something slow, every table waits.</p>
+        </div>
+      </div>
+
+      <h3>The same job, both ways</h3>
+      <div class="split">
+        <div>
+          <h4>Threading</h4>
+<pre><code class="language-python">import time
+from concurrent.futures import ThreadPoolExecutor
+
+def download(name):
+    time.sleep(1)        # normal blocking call
+    return f"{name} done"
+
+with ThreadPoolExecutor() as pool:
+    results = list(pool.map(download, ["a", "b", "c"]))
+# 3 downloads in ~1.0s</code></pre>
+        </div>
+        <div>
+          <h4>Asyncio</h4>
+<pre><code class="language-python">import asyncio
+
+async def download(name):
+    await asyncio.sleep(1)   # must be an async call
+    return f"{name} done"
+
+async def main():
+    return await asyncio.gather(
+        *(download(n) for n in ["a", "b", "c"]))
+
+results = asyncio.run(main())
+# 3 downloads in ~1.0s</code></pre>
+        </div>
+      </div>
+      <p>Same result, same speed. Notice that the threaded version uses ordinary functions, while the asyncio version needs <code>async def</code>, <code>await</code> and async-friendly calls everywhere.</p>
+
+      <div class="table-wrap"><table>
+        <tr><th></th><th>Threading</th><th>Asyncio</th></tr>
+        <tr><td>Who switches tasks</td><td>The OS, at any moment</td><td>Your code, at each <code>await</code></td></tr>
+        <tr><td>Shared data</td><td>Needs locks (races can happen)</td><td>Safe between <code>await</code>s — no locks needed</td></tr>
+        <tr><td>Cost per task</td><td>Megabytes — fine for tens or hundreds</td><td>About a kilobyte — fine for tens of thousands</td></tr>
+        <tr><td>Libraries</td><td>Works with normal ones (<code>requests</code>, most DB drivers)</td><td>Needs async ones (<code>aiohttp</code>, <code>asyncpg</code>, <code>httpx</code>)</td></tr>
+        <tr><td>Biggest danger</td><td>Race conditions</td><td>One blocking call (<code>time.sleep</code>, <code>requests.get</code>) freezes everything</td></tr>
+        <tr><td>Code changes</td><td>Little — wrap existing functions</td><td><code>async</code>/<code>await</code> spreads through the code</td></tr>
+      </table></div>
+
+      <h3>Which should I pick?</h3>
+      <div class="split">
+        <div class="imm">
+          <h4>Pick threading when…</h4>
+          <ul>
+            <li>you're using normal, blocking libraries</li>
+            <li>you need a handful to a few hundred tasks</li>
+            <li>you're speeding up existing code with minimal changes</li>
+          </ul>
+        </div>
+        <div class="imm">
+          <h4>Pick asyncio when…</h4>
+          <ul>
+            <li>you need thousands of connections at once</li>
+            <li>async libraries exist for what you need</li>
+            <li>you're building a server, chat app, websockets or a scraper</li>
+          </ul>
+        </div>
+      </div>
+      <p class="muted">Neither helps with heavy <em>calculation</em> — both run one piece of Python at a time. For CPU-bound work, use processes (Module 15).</p>
+
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Threads get interrupted. Async tasks politely step aside.”</p>
+        <p>Interrupted at any moment → you need locks. Stepping aside only at <code>await</code> → you must never block.</p>
       </div>
     </section>
 
