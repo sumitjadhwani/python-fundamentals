@@ -350,26 +350,105 @@ print(ref().name)        # → gold
 del big                  # → gold popped   the weak ref didn't keep it alive
 print(ref())             # → None</code></pre>
 
-      <div class="callout warn">
-        <div class="callout-title">⚠️ Common mistake 1: using <code>__del__</code> for cleanup</div>
-        <p><code>__del__</code> is fine for a demo, but in real code you can't be sure <em>when</em> it runs (cycles delay it, and it may not run at all when the program exits). For files, connections and locks, use <code>with</code> (Phase 2, Module 9) — cleanup then happens at a known moment.</p>
+      <h3>⚠️ Common mistake 1: relying on <code>__del__</code> for cleanup</h3>
+      <p>It's tempting to put cleanup — closing a file, a network connection, a database session — inside <code>__del__</code>, so it happens “automatically when the object goes away”. The problem: <strong>you don't control when that is</strong>. If the object ends up in a reference cycle (and cycles are easy to create by accident: parent ↔ child links, an object that stores its own method as a callback…), <code>__del__</code> waits until the garbage collector's next sweep.</p>
+<pre><code class="language-python">import gc, os
+
+class LogFile:
+    def __init__(self, path):
+        self.f = open(path, "w", encoding="utf-8")
+    def write(self, text):
+        self.f.write(text)
+    def __del__(self):              # ❌ cleanup hidden in __del__
+        print("closing file")
+        self.f.close()
+
+log = LogFile("app.log")
+log.write("started\n")
+log.me = log                       # an accidental cycle: the object points at itself
+del log                            # we're done with it… but nothing is printed
+
+print(os.path.getsize("app.log"))  # → 0   the text was never saved to disk!
+gc.collect()                       # → closing file   (only now, whenever the GC runs)
+print(os.path.getsize("app.log"))  # → 9</code></pre>
+      <p>Until that sweep happens, the file stays open and your text sits unsaved in memory. If the program crashes in between, it's lost. On Windows, an open file also can't be deleted or renamed. With database connections, you can run out of connections because “dead” objects are still holding them.</p>
+
+      <p><strong>The fix: make cleanup explicit with <code>with</code>.</strong> Give the class <code>__enter__</code> and <code>__exit__</code> (Phase 2, Module 9), and cleanup happens at a moment you can point to:</p>
+<pre><code class="language-python">class LogFile:
+    def __init__(self, path):
+        self.path = path
+    def __enter__(self):                         # runs at the start of the with-block
+        self.f = open(self.path, "w", encoding="utf-8")
+        return self
+    def write(self, text):
+        self.f.write(text)
+    def __exit__(self, exc_type, exc, tb):       # ✅ runs at the end, guaranteed
+        print("closing file")
+        self.f.close()
+
+with LogFile("app.log") as log:
+    log.write("started\n")
+# → closing file     exactly here, every time — even if write() raised an error
+
+print(os.path.getsize("app.log"))   # → 9   saved immediately</code></pre>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“<code>__del__</code> is <em>someday</em>. <code>with</code> is <em>right here</em>.”</p>
       </div>
 
-      <div class="callout warn">
-        <div class="callout-title">⚠️ Common mistake 2: “leaks” from things you forgot you're holding</div>
-        <p>Python can't free an object while something still references it. The classic leak is a cache that only ever grows:</p>
-<pre><code class="language-python">_cache = {}
+      <h3>⚠️ Common mistake 2: “leaks” from things you're still holding</h3>
+      <div class="callout core">
+        <div class="callout-title">💬 How can Python leak if it cleans up automatically?</div>
+        <p>Python frees an object only when <strong>nothing references it any more</strong>. It has no way of knowing that <em>you</em> will never use an object again — if something still holds a string to it, it must stay. A Python “memory leak” almost always means: <strong>some long-lived object keeps collecting references and never lets go</strong>. Memory use creeps up and up until the program gets slow or crashes.</p>
+      </div>
+      <div class="analogy">
+        <span class="emoji">🎈</span>
+        <div>
+          <strong>Someone who never lets go of a string.</strong>
+          <p>A global dictionary is a person standing in the corner for the whole party. Every balloon you hand them, they keep holding — forever. None of those balloons can ever float away, even ones nobody has looked at in hours.</p>
+        </div>
+      </div>
+      <p>The classic example is a “cache” that only ever grows. Here each user's data is about 1 KB:</p>
+<pre><code class="language-python">import tracemalloc
+tracemalloc.start()                        # measure Python's memory use
+
+_cache = {}                                # global: lives as long as the program
 
 def load_user(user_id):
     if user_id not in _cache:
-        _cache[user_id] = fetch_from_db(user_id)   # ❌ every user stays in memory forever
+        _cache[user_id] = {"id": user_id, "bio": "x" * 1000}   # pretend database result
     return _cache[user_id]
 
-from functools import lru_cache
+for user_id in range(100_000):             # e.g. a web server, one visitor after another
+    load_user(user_id)
 
-@lru_cache(maxsize=1000)                           # ✅ keeps only the 1000 most recently used
+print(len(_cache))                                   # → 100000   every user still held
+print(round(tracemalloc.get_traced_memory()[0] / 10**6))  # → 27   MB, and still growing</code></pre>
+      <p>Each visitor's data was needed for one request, but <code>_cache</code> holds a reference to all of them, so reference counting can never reach zero. On a server that runs for weeks with millions of visitors, this grows until the machine runs out of memory.</p>
+
+      <p><strong>The fix: put a limit on it.</strong> <code>lru_cache(maxsize=…)</code> keeps only the most recently used entries and lets go of the rest:</p>
+<pre><code class="language-python">from functools import lru_cache
+
+@lru_cache(maxsize=1000)                   # ✅ at most 1000 users kept
 def load_user(user_id):
-    return fetch_from_db(user_id)</code></pre>
+    return {"id": user_id, "bio": "x" * 1000}
+
+for user_id in range(100_000):
+    load_user(user_id)
+
+print(load_user.cache_info().currsize)     # → 1000
+# memory used: about 0.3 MB instead of 27 MB</code></pre>
+
+      <h4>Other things that quietly hold on</h4>
+      <ul>
+        <li><strong>Lists that only grow</strong> — an “event history” or debug log you append to and never trim. Use <code>collections.deque(maxlen=1000)</code> to keep only the latest items.</li>
+        <li><strong>Callbacks you never remove</strong> — registering an object's method with a long-lived event system keeps that object alive. Unregister it when you're done.</li>
+        <li><strong>Global variables</strong> pointing at big data you've finished with — set them to <code>None</code> or <code>del</code> them.</li>
+      </ul>
+      <div class="callout trick">
+        <div class="callout-title">🧠 Memory trick</div>
+        <p class="mnemonic">“Python forgets what nobody holds — so don't hold what you don't need.”</p>
+        <p>Anything long-lived that keeps <em>adding</em> (a global dict, list or registry) needs a limit or a way to remove entries.</p>
       </div>
 
       <div class="predict">
